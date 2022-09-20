@@ -2,7 +2,7 @@
 #include <vector>
 #include <iomanip>
 
-#include "../common/cuda_check.hpp"
+#include "../common/error_checkers.hpp"
 
 __global__ void reverse(double *vec, int n) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -28,10 +28,11 @@ int main() {
 	}
 
 	double *dev_vec;
-	checkCudaErrors(cudaMalloc(&dev_vec, sizeof(double) * n));
-	checkCudaErrors(cudaMemcpy(dev_vec, vec.data(), sizeof(double) * n, cudaMemcpyDeviceToDevice));
+	checkCudaError(cudaMalloc(&dev_vec, sizeof(double) * n));
+	checkCudaError(cudaMemcpy(dev_vec, vec.data(), sizeof(double) * n, cudaMemcpyHostToDevice));
 	reverse<<<128, 128>>>(dev_vec, n);
-	checkCudaErrors(cudaMemcpy(vec.data(), dev_vec, sizeof(double) * n, cudaMemcpyDeviceToHost));
+	checkLastCudaError();
+	checkCudaError(cudaMemcpy(vec.data(), dev_vec, sizeof(double) * n, cudaMemcpyDeviceToHost));
 
 	std::cout << std::setprecision(10) << std::fixed;
 	for (int i = 0; i < n; ++i) {
@@ -39,5 +40,5 @@ int main() {
 	}
 	std::cout << '\n';
 
-	checkCudaErrors(cudaFree(dev_vec));
+	checkCudaError(cudaFree(dev_vec));
 }
