@@ -28,11 +28,12 @@ int main() {
 	}
 
 	double *dev_vec;
-	checkCudaError(cudaMalloc(&dev_vec, sizeof(double) * n));
-	checkCudaError(cudaMemcpy(dev_vec, vec.data(), sizeof(double) * n, cudaMemcpyHostToDevice));
+	cudaCheck(cudaMalloc(&dev_vec, sizeof(double) * n));
+	cudaCheck(cudaMemcpy(dev_vec, vec.data(), sizeof(double) * n, cudaMemcpyHostToDevice));
 	reverse<<<128, 128>>>(dev_vec, n);
-	checkLastCudaError();
-	checkCudaError(cudaMemcpy(vec.data(), dev_vec, sizeof(double) * n, cudaMemcpyDeviceToHost));
+	cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
+	cudaCheck(cudaMemcpy(vec.data(), dev_vec, sizeof(double) * n, cudaMemcpyDeviceToHost));
 
 	std::cout << std::setprecision(10) << std::fixed;
 	for (int i = 0; i < n; ++i) {
@@ -40,6 +41,6 @@ int main() {
 	}
 	std::cout << '\n';
 
-	checkCudaError(cudaFree(dev_vec));
+	cudaCheck(cudaFree(dev_vec));
 	return 0;
 }
