@@ -41,4 +41,5 @@ int main() {
 	std::cout << '\n';
 
 	checkCudaError(cudaFree(dev_vec));
+	return 0;
 }
