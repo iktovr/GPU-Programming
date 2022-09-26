@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <iomanip>
+#include <cstdlib>
 
 #include "../../common/error_checkers.hpp"
 #include "../../common/cuda_timer.hpp"
@@ -18,7 +19,11 @@ __global__ void reverse(double *vec, int n) {
 	}
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+	char *end;
+	int blocks = std::strtol(argv[1], &end, 10);
+	int threads = std::strtol(argv[2], &end, 10);
+
 	std::ios::sync_with_stdio(false);
 	int n;
 	std::cin >> n;
@@ -34,14 +39,14 @@ int main() {
 
 	cudaStartTimer();
 
-	reverse<<<128, 128>>>(dev_vec, n);
+	reverse<<<blocks, threads>>>(dev_vec, n);
 	// cudaCheck(cudaDeviceSynchronize());
 	cudaCheckLastError();
 
 	float t;
 	cudaEndTimer(t);
 
-	std::cout << t << " ms\n";
+	std::cout << t;
 
 	cudaCheck(cudaFree(dev_vec));
 	return 0;

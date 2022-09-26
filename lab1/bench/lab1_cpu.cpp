@@ -30,5 +30,6 @@ int main() {
 
 	steady_clock::time_point end = steady_clock::now();
 
-	std::cout << duration_cast<milliseconds>(end - start).count() << " ms\n";
+	std::cout << duration_cast<milliseconds>(end - start).count();
+	return 0;
 }
