@@ -2,7 +2,7 @@ import click
 import sys
 from pathlib import Path
 import subprocess
-from tabulate import tabulate
+import termtables
 
 
 class GridDim(click.ParamType):
@@ -65,7 +65,7 @@ def benchmark(gpu, cpu, single_tests, test_dir, kernels):
                     sys.exit()
                 table[-1].append(int(result.stdout))
 
-    click.echo(tabulate(table, headers=headers))
+    click.echo(termtables.to_string(table, header=headers, style=termtables.styles.markdown))
 
 
 if __name__ == "__main__":
