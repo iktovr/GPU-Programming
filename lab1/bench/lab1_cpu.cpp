@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <iomanip>
 #include <chrono>
 
 using namespace std::chrono;
@@ -30,6 +29,6 @@ int main() {
 
 	steady_clock::time_point end = steady_clock::now();
 
-	std::cout << duration_cast<milliseconds>(end - start).count();
+	std::cout << duration_cast<nanoseconds>(end - start).count() / 1000000.0;
 	return 0;
 }

@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from random import randint
 from pathlib import Path
 import argparse
@@ -7,7 +9,7 @@ def test_gen(start, stop, tests_dir, counts):
     if not tests_dir.exists():
         tests_dir.mkdir()
     for count in counts:
-        with open(tests_dir / ("test%d" % count), "wt") as test:
+        with open(str(tests_dir / ("test%d" % count)), "wt") as test:
             test.write("%d\n" % count)
             for i in range(count):
                 test.write("%d " % randint(start, stop))

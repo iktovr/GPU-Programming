@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import sys
 from pathlib import Path
@@ -28,42 +30,43 @@ def benchmark(gpu, cpu, tests, test_dir, kernels):
         for test in test_dir.iterdir():
             if test.is_file():
                 tests.append(test)
+    tests.sort()
 
     headers = ['name', *[i.name for i in tests]]
     table = []
 
-    if gpu is not None:
-        table = [[0 for i in range(len(tests))] for i in range(len(kernels)+1)]
-        for j, kernel in enumerate(kernels):
-            table[j][0] = 'x'.join(kernel)
-
-        for i, test_file in enumerate(tests):
-            with open(test_file, 'r') as test:
-                for j, kernel in enumerate(kernels):
-                    try:
-                        result = subprocess.run([gpu, *kernel], stdin=test, capture_output=True)
-                    except OSError as e:
-                        print("Execution failed: %s" % e)
-                        sys.exit()
-                    if result.returncode != 0:
-                        print("%s with test %s return %d" % (gpu.name, test_file.name, result.returncode))
-                        sys.exit()
-                    table[j][i+1].append(int(result.stdout))
-                test.seek(0)
-
     if cpu is not None:
         table.append(['cpu'])
         for test_file in tests:
-            with open(test_file, 'r') as test:
+            with open(str(test_file), 'r') as test:
                 try:
-                    result = subprocess.run([cpu], stdin=test, capture_output=True)
+                    result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE)
                 except OSError as e:
                     print("Execution failed: %s" % e)
                     sys.exit()
                 if result.returncode != 0:
                     print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode))
                     sys.exit()
-                table[-1].append(int(result.stdout))
+                table[-1].append(float(result.stdout))
+
+    if gpu is not None:
+        for kernel in kernels:
+            table.append([0 for i in range(len(tests)+1)])
+            table[-1][0] = 'x'.join(kernel)
+
+        for i, test_file in enumerate(tests):
+            with open(str(test_file), 'r') as test:
+                for j, kernel in enumerate(kernels):
+                    try:
+                        result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE)
+                    except OSError as e:
+                        print("Execution failed: %s" % e)
+                        sys.exit()
+                    if result.returncode != 0:
+                        print("%s with test %s return %d" % (gpu.name, test_file.name, result.returncode))
+                        sys.exit()
+                    table[j+1][i+1] = float(result.stdout)
+                test.seek(0)
 
     print_table(table, headers=headers)
 

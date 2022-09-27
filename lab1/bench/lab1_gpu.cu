@@ -1,6 +1,5 @@
 #include <iostream>
 #include <vector>
-#include <iomanip>
 #include <cstdlib>
 
 #include "../../common/error_checkers.hpp"
@@ -45,7 +44,7 @@ int main(int argc, char* argv[]) {
 
 	float t;
 	cudaEndTimer(t);
-
+	
 	std::cout << t;
 
 	cudaCheck(cudaFree(dev_vec));

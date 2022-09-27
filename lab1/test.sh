@@ -1,0 +1,1 @@
+../benchmark.py --gpu bench/lab1_gpu --cpu bench/lab1_cpu --test-dir tests "1 32" "32 32" "64 64" "128 128" "256 256" "512 512" "1024 1024"
