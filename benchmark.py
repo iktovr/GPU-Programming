@@ -23,7 +23,7 @@ def print_table(table, headers=None, hsep='-', vsep='|'):
         print(vsep, vsep.join([' {:%d} ' % i for i in column_width]).format(*row), vsep, sep='')
 
 
-def benchmark(gpu, cpu, tests, test_dir, kernels):
+def benchmark(gpu, cpu, tests, test_dir, kernels, repeat):
     if tests is None:
         tests = []
     if test_dir is not None:
@@ -34,20 +34,23 @@ def benchmark(gpu, cpu, tests, test_dir, kernels):
 
     headers = ['name', *[i.name for i in tests]]
     table = []
+    time = [0 for i in range(repeat)]
 
     if cpu is not None:
         table.append(['cpu'])
         for test_file in tests:
             with open(str(test_file), 'r') as test:
-                try:
-                    result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE)
-                except OSError as e:
-                    print("Execution failed: %s" % e)
-                    sys.exit()
-                if result.returncode != 0:
-                    print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode))
-                    sys.exit()
-                table[-1].append(float(result.stdout))
+                for i in range(repeat):
+                    try:
+                        result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE)
+                    except OSError as e:
+                        print("Execution failed: %s" % e)
+                        sys.exit()
+                    if result.returncode != 0:
+                        print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode))
+                        sys.exit()
+                    time[i] = float(result.stdout)
+                table[-1].append(sum(time) / repeat)
 
     if gpu is not None:
         for kernel in kernels:
@@ -57,15 +60,17 @@ def benchmark(gpu, cpu, tests, test_dir, kernels):
         for i, test_file in enumerate(tests):
             with open(str(test_file), 'r') as test:
                 for j, kernel in enumerate(kernels):
-                    try:
-                        result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE)
-                    except OSError as e:
-                        print("Execution failed: %s" % e)
-                        sys.exit()
-                    if result.returncode != 0:
-                        print("%s with test %s return %d" % (gpu.name, test_file.name, result.returncode))
-                        sys.exit()
-                    table[j+1][i+1] = float(result.stdout)
+                    for i in range(repeat):
+                        try:
+                            result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE)
+                        except OSError as e:
+                            print("Execution failed: %s" % e)
+                            sys.exit()
+                        if result.returncode != 0:
+                            print("%s with test %s return %d" % (gpu.name, test_file.name, result.returncode))
+                            sys.exit()
+                        time[i] = float(result.stdout)
+                    table[j+1][i+1] = sum(time) / repeat
                 test.seek(0)
 
     print_table(table, headers=headers)
@@ -80,6 +85,7 @@ parser.add_argument("--gpu", type=Path, default=None)
 parser.add_argument("--cpu", type=Path, default=None)
 parser.add_argument("--tests", "-t", nargs="*", type=Path)
 parser.add_argument("--test-dir", type=Path, default=None)
+parser.add_argument("--repeat", "-r", type=int, default=1)
 parser.add_argument("kernels", nargs="*", type=grid_dim)
 
 if __name__ == "__main__":
