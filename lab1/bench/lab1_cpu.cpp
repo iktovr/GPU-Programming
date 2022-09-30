@@ -1,6 +1,8 @@
 #include <iostream>
 #include <vector>
-#include <iomanip>
+#include <chrono>
+
+using namespace std::chrono;
 
 void reverse(std::vector<double> &data, int n) {
 	double p;
@@ -21,11 +23,12 @@ int main() {
 		std::cin >> data[i];
 	}
 
+	steady_clock::time_point start = steady_clock::now();
+
 	reverse(data, n);
 
-	std::cout << std::setprecision(10) << std::fixed;
-	for (int i = 0; i < n; ++i) {
-		std::cout << data[i] << ' ';
-	}
-	std::cout << '\n';
+	steady_clock::time_point end = steady_clock::now();
+
+	std::cout << duration_cast<nanoseconds>(end - start).count() / 1000000.0;
+	return 0;
 }
