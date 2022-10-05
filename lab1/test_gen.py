@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Написан для python 3.5
 
 from random import randint
 from pathlib import Path
@@ -6,6 +7,8 @@ import argparse
 
 
 def test_gen(start, stop, tests_dir, counts):
+    assert tests_dir.is_dir()
+    
     if not tests_dir.exists():
         tests_dir.mkdir()
     for count in counts:

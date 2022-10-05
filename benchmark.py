@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Написан для python 3.5
 
 import argparse
 import sys
@@ -21,7 +22,8 @@ def print_table(table, headers=None, hsep='-', vsep='|'):
 
     for row in table:
         print(vsep, 
-              vsep.join([(' {:%d.6f} ' if type(row[i]) is float else ' {:%d} ') % w for i, w in enumerate(column_width)]).format(*row), 
+              vsep.join([(' {:%d.6f} ' if type(row[i]) is float else ' {:%d} ') % w 
+                         for i, w in enumerate(column_width)]).format(*row), 
               vsep, sep='')
 
 
@@ -41,15 +43,16 @@ def benchmark(gpu, cpu, tests, test_dir, kernels, repeat):
     if cpu is not None:
         table.append(['cpu'])
         for test_file in tests:
-            with open(str(test_file), 'r') as test:
+            with open(str(test_file), 'rt') as test:
                 for i in range(repeat):
                     try:
                         result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE)
                     except OSError as e:
-                        print("Execution failed: %s" % e)
+                        print("%s execution failed: %s" % (cpu.name, e), file=sys.stderr)
                         sys.exit()
                     if result.returncode != 0:
-                        print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode))
+                        print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode), 
+                              file=sys.stderr)
                         sys.exit()
                     time[i] = float(result.stdout)
                     test.seek(0)
@@ -67,10 +70,11 @@ def benchmark(gpu, cpu, tests, test_dir, kernels, repeat):
                         try:
                             result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE)
                         except OSError as e:
-                            print("Execution failed: %s" % e)
+                            print("%s execution failed: %s" % (gpu.name + ' '.join(kernel), e), file=sys.stderr)
                             sys.exit()
                         if result.returncode != 0:
-                            print("%s with test %s return %d" % (gpu.name, test_file.name, result.returncode))
+                            print("%s with test %s return %d" % 
+                                  (gpu.name + ' '.join(kernel), test_file.name, result.returncode), file=sys.stderr)
                             sys.exit()
                         time[k] = float(result.stdout)
                         test.seek(0)
@@ -83,13 +87,14 @@ def grid_dim(value):
     return [str(int(i)) for i in value.split(' ')]
 
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--gpu", type=Path, default=None)
-parser.add_argument("--cpu", type=Path, default=None)
-parser.add_argument("--tests", "-t", nargs="*", type=Path)
-parser.add_argument("--test-dir", type=Path, default=None)
-parser.add_argument("--repeat", "-r", type=int, default=1)
-parser.add_argument("kernels", nargs="*", type=grid_dim)
+parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+parser.add_argument("--gpu", type=Path, default=None, help="Исполняемый файл для CUDA")
+parser.add_argument("--cpu", type=Path, default=None, help="Исполняемый файл для CPU")
+parser.add_argument("--tests", "-t", nargs="*", type=Path, help="Тестовые файлы")
+parser.add_argument("--test-dir", type=Path, default=None,
+                    help="Директория с тестовыми файлами (все файлы добавляются к предыдущим)")
+parser.add_argument("--repeat", "-r", type=int, default=1, help="Число запусков каждой конфигурации")
+parser.add_argument("kernels", nargs="*", type=grid_dim, help="Конфигурации ядра в формате \"DIM1 DIM2 ...\"")
 
 if __name__ == "__main__":
     args = parser.parse_args()
