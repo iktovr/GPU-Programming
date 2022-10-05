@@ -12,10 +12,17 @@ def test_gen(start, stop, tests_dir, counts):
     if not tests_dir.exists():
         tests_dir.mkdir()
     for count in counts:
-        with open(str(tests_dir / ("test%d" % count)), "wt") as test:
+        nums = list()
+        for i in range(count):
+            nums.append(randint(start, stop))
+        with open(str(tests_dir / ("test%d.in" % count)), "wt") as test:
             test.write("%d\n" % count)
-            for i in range(count):
-                test.write("%d " % randint(start, stop))
+            for num in nums:
+                test.write("%d " % num)
+        with open(str(tests_dir / ("test%d.out" % count)), "wt") as ans:
+            for num in nums[::-1]:
+                ans.write("%.10f " % num)
+            ans.write('\n')
 
 
 parser = argparse.ArgumentParser()
