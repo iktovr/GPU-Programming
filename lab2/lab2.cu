@@ -96,7 +96,7 @@ int main() {
 	cudaCheck(cudaMemcpy(res.data(), dev_res, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost));
 
 	std::ofstream out_file(out_filename, std::ios::binary);
-	check(out_file.is_open(), "failed to open file", false);
+	check(out_file.is_open(), "failed to open output file", false);
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));

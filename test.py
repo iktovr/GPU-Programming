@@ -53,10 +53,6 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
         except OSError as e:
             print("diff execution failed: ", e, file=sys.stderr)
             sys.exit()
-        if diff.returncode != 0:
-            print("diff return %d" % (diff.returncode, ), 
-                  file=sys.stderr)
-            sys.exit()
 
         print(test.stem, ':', sep='', end=' ')
         if len(diff.stdout) == 0:

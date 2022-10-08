@@ -68,7 +68,7 @@ int main() {
 	check(img, "error loading image", NULL);
 #else
 	std::ifstream in_file(in_filename, std::ios::binary);
-	check(in_file.is_open(), "failed to open file", false);
+	check(in_file.is_open(), "failed to open input file", false);
 
 	in_file.read(reinterpret_cast<char*>(&width), sizeof(width));
 	in_file.read(reinterpret_cast<char*>(&height), sizeof(height));
@@ -109,7 +109,7 @@ int main() {
 	stbi_write_png(out_filename.c_str(), width, height, channels, res.data(), width * channels);
 #else
 	std::ofstream out_file(out_filename, std::ios::binary);
-	check(out_file.is_open(), "failed to open file", false);
+	check(out_file.is_open(), "failed to open output file", false);
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
