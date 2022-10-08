@@ -28,13 +28,16 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
 
         with open(str(test), 'rt') as test_file:
             try:
-                result = subprocess.run([str(program)], stdin=test_file, stdout=out_file)
+                result = subprocess.run([str(program)], stdin=test_file, stdout=out_file, stderr=subprocess.PIPE)
             except OSError as e:
                 print("%s execution failed: %s" % (program.name, e), file=sys.stderr)
                 sys.exit()
             if result.returncode != 0:
                 print("%s with test %s return %d" % (program.name, test.name, result.returncode), 
                       file=sys.stderr)
+                sys.exit()
+            if result.stderr.startswith(b"ERROR:"):
+                print("%s %s" % (program.name, result.stderr.decode('utf-8')), file=sys.stderr)
                 sys.exit()
 
         if out_ext is None:
@@ -49,12 +52,15 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
         except OSError as e:
             print("diff execution failed: ", e, file=sys.stderr)
             sys.exit()
+        if diff.returncode != 0:
+            print("diff return %d" % (diff.returncode, ), 
+                  file=sys.stderr)
+            sys.exit()
 
         print(test.stem, ':', sep='', end=' ')
         if len(diff.stdout) == 0:
             print("OK")
-            if out_ext is None:
-                out.unlink()
+            out.unlink()
         else:
             print("WA")
 
