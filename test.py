@@ -17,7 +17,8 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
         if file.suffix == in_ext:
             if not file.with_suffix(ans_ext).exists():
                 print("Missing answer for test", str(file), file=sys.stderr)
-            tests.append(file)
+            else:
+                tests.append(file)
     tests.sort()
 
     for test in tests:
@@ -28,7 +29,7 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
 
         with open(str(test), 'rt') as test_file:
             try:
-                result = subprocess.run([str(program)], stdin=test_file, stdout=out_file, stderr=subprocess.PIPE)
+                result = subprocess.run(['./' + str(program)], stdin=test_file, stdout=out_file, stderr=subprocess.PIPE)
             except OSError as e:
                 print("%s execution failed: %s" % (program.name, e), file=sys.stderr)
                 sys.exit()

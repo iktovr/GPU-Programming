@@ -9,7 +9,7 @@
 
 __constant__ char Wx[3][3], Wy[3][3];
 
-__global__ sobel_filter(cudaArray_t img, uchar4 *res, int width, int height) {
+__global__ void sobel_filter(cudaTextureObject_t img, uchar4 *res, int width, int height) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int idy = blockDim.y * blockIdx.y + threadIdx.y;
 	int offsetx = blockDim.x * gridDim.x;
@@ -23,7 +23,7 @@ __global__ sobel_filter(cudaArray_t img, uchar4 *res, int width, int height) {
 			Gy = 0;
 			for (int u = -1; u <= 1; ++u) {
 				for (int v = -1; v <= 1; ++v) {
-					p = tex2D(tex, x + u, y + v);
+					p = tex2D<uchar4>(img, x + u, y + v);
 					lum = 0.299 * p.x +  0.587 * p.y + 0.114 * p.z;
 					Gx += Wx[u+1][v+1] * lum;
 					Gy += Wy[u+1][v+1] * lum;
@@ -47,8 +47,8 @@ int main() {
 		{ 0,  0,  0},
 		{ 1,  2,  1}
 	};
-	cudaCheck(cudaMemcpyToSymbol(Wx, host_Wx), 9);
-	cudaCheck(cudaMemcpyToSymbol(Wy, host_Wy), 9);
+	cudaCheck(cudaMemcpyToSymbol(Wx, host_Wx, 9));
+	cudaCheck(cudaMemcpyToSymbol(Wy, host_Wy, 9));
 
 	std::string in_filename, out_filename;
 	std::cin >> in_filename >> out_filename;
@@ -68,11 +68,10 @@ int main() {
 	cudaChannelFormatDesc ch_desc = cudaCreateChannelDesc<uchar4>();
 	cudaCheck(cudaMallocArray(&dev_img, &ch_desc, width, height));
 	cudaCheck(cudaMemcpy2DToArray(dev_img, 0, 0, img.data(), width * sizeof(uchar4), 
-		                          width * sizeof(uchar4), height, cudaMemcpyHostToDevice));
+	                              width * sizeof(uchar4), height, cudaMemcpyHostToDevice));
 
 	struct cudaResourceDesc res_desc;
 	memset(&res_desc, 0, sizeof(res_desc));
-	res_desc.decs = ch_desc;
 	res_desc.resType = cudaResourceTypeArray;
 	res_desc.res.array.array = dev_img;
 
@@ -84,13 +83,13 @@ int main() {
 	tex_desc.readMode = cudaReadModeElementType;
 	tex_desc.normalizedCoords = false;
 
-	cudaTextureObject_t tex_obj = 0;
-    cudaCheck(cudaCreateTextureObject(&tex_obj, &res_desc, &tex_desc, NULL));
+	cudaTextureObject_t img_tex = 0;
+    cudaCheck(cudaCreateTextureObject(&img_tex, &res_desc, &tex_desc, NULL));
 
     uchar4 *dev_res;
     cudaCheck(cudaMalloc(&dev_res, width * height * sizeof(uchar4)));
 
-    sobel_filter<<<dim3(16, 16), dim3(32, 32)>>>(dev_img, dev_res, width, height);
+    sobel_filter<<<dim3(16, 16), dim3(32, 32)>>>(img_tex, dev_res, width, height);
 
 	std::vector<uchar4> res(width * height);
 	res.shrink_to_fit();
@@ -103,7 +102,7 @@ int main() {
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
 	out_file.write(reinterpret_cast<char*>(res.data()), sizeof(uchar4) * width * height);
 
-	cudaCheck(cudaDestroyTextureObject(tex_bj));
+	cudaCheck(cudaDestroyTextureObject(img_tex));
 	cudaCheck(cudaFreeArray(dev_img));
 	cudaCheck(cudaFree(dev_res));
 	return 0;
