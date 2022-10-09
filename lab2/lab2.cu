@@ -90,6 +90,8 @@ int main() {
     cudaCheck(cudaMalloc(&dev_res, width * height * sizeof(uchar4)));
 
     sobel_filter<<<dim3(16, 16), dim3(32, 32)>>>(img_tex, dev_res, width, height);
+    cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
 
 	std::vector<uchar4> res(width * height);
 	res.shrink_to_fit();
