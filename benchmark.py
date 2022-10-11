@@ -84,10 +84,10 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
                             sys.exit()
                         if result.returncode != 0:
                             print("%s with test %s return %d" % 
-                                  (gpu.name + ' '.join(kernel), test_file.name, result.returncode), file=sys.stderr)
+                                  (gpu.name + ' ' + ' '.join(kernel), test_file.name, result.returncode), file=sys.stderr)
                             sys.exit()
                         if result.stderr.startswith(b"ERROR:"):
-                            print("%s %s" % (gpu.name+' '.join(kernel), result.stderr.decode('utf-8')), file=sys.stderr)
+                            print("%s %s" % (gpu.name + ' ' + ' '.join(kernel), result.stderr.decode('utf-8')), file=sys.stderr)
                             sys.exit()
                         time[k] = float(result.stdout)
                         test.seek(0)
