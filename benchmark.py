@@ -5,6 +5,7 @@ import argparse
 import sys
 from pathlib import Path
 import subprocess
+import re
 
 
 def print_table(table, headers=None, hsep='-', vsep='|'):
@@ -27,22 +28,27 @@ def print_table(table, headers=None, hsep='-', vsep='|'):
               vsep, sep='')
 
 
-def benchmark(gpu, cpu, tests, test_dir, kernels, repeat):
-    if tests is None:
-        tests = []
-    if test_dir is not None:
-        for test in test_dir.iterdir():
-            if test.is_file():
-                tests.append(test)
-    tests.sort()
+def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
+    if pattern is not None:
+        file_re = re.compile(pattern)
 
-    headers = ['name', *[i.name for i in tests]]
+    test_files = []
+    for test_file in tests:
+        if test_file.is_dir():
+            for test in test_file.iterdir():
+                if test.is_file() and (pattern is None or file_re.fullmatch(test.name) is not None):
+                    test_files.append(test)
+        elif pattern is None or file_re.fullmatch(test_file.name) is not None:
+            test_files.append(test_file)
+    test_files.sort()
+
+    headers = ['name', *[i.name for i in test_files]]
     table = []
     time = [0 for i in range(repeat)]
 
     if cpu is not None:
         table.append(['cpu'])
-        for test_file in tests:
+        for test_file in test_files:
             with open(str(test_file), 'rt') as test:
                 for i in range(repeat):
                     try:
@@ -60,10 +66,10 @@ def benchmark(gpu, cpu, tests, test_dir, kernels, repeat):
 
     if gpu is not None:
         for kernel in kernels:
-            table.append([0 for i in range(len(tests)+1)])
+            table.append([0 for i in range(len(test_files)+1)])
             table[-1][0] = 'x'.join(kernel)
 
-        for i, test_file in enumerate(tests):
+        for i, test_file in enumerate(test_files):
             with open(str(test_file), 'r') as test:
                 for j, kernel in enumerate(kernels):
                     for k in range(repeat):
@@ -90,10 +96,9 @@ def grid_dim(value):
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--gpu", type=Path, default=None, help="Исполняемый файл для CUDA")
 parser.add_argument("--cpu", type=Path, default=None, help="Исполняемый файл для CPU")
-parser.add_argument("--tests", "-t", nargs="*", type=Path, help="Тестовые файлы")
-parser.add_argument("--test-dir", type=Path, default=None,
-                    help="Директория с тестовыми файлами (все файлы добавляются к предыдущим)")
+parser.add_argument("--tests", "-t", nargs="*", type=Path, help="Тестовые файлы (директории)")
 parser.add_argument("--repeat", "-r", type=int, default=1, help="Число запусков каждой конфигурации")
+parser.add_argument("--pattern", "-p", type=str, default=None, help="Регулярное выражения имен тестов")
 parser.add_argument("kernels", nargs="*", type=grid_dim, help="Конфигурации ядра в формате \"DIM1 DIM2 ...\"")
 
 if __name__ == "__main__":

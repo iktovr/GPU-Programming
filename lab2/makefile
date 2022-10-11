@@ -18,3 +18,6 @@ bench: lab2_cpu.cpp lab2.cu
 
 stbi: lab2_cpu.cpp
 	$(CXX) $(CFLAGS) -o lab2_cpu -DSTBI lab2_cpu.cpp
+
+clean:
+	rm -f bench/lab2* lab2 lab2_cpu

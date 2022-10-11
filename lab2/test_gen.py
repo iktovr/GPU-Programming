@@ -13,10 +13,13 @@ def test_gen(resolution, tests_dir):
     if not tests_dir.exists():
         tests_dir.mkdir()
     for width, height in [map(int, res.split('x')) for res in resolution]:
-        with open(str(tests_dir / ("test%dx%d" % (width, height))), "wb") as test:
+        testname = Path("test%dx%d.data" % (width, height))
+        with open(str(tests_dir / testname), "wb") as test:
             test.write(struct.pack('ii', width, height))
             for _ in range(width * height):
                 test.write(struct.pack('BBBB', randrange(256), randrange(256), randrange(256), randrange(256)))
+        with open(str(tests_dir / testname.with_suffix('.in')), 'wt') as test:
+            test.write(str(testname) + '\n' + str(testname.with_suffix('.out')))
 
 
 parser = argparse.ArgumentParser()
