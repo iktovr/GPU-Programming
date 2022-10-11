@@ -52,7 +52,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
             with open(str(test_file), 'rt') as test:
                 for i in range(repeat):
                     try:
-                        result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE)
+                        result = subprocess.run([str(cpu)], stdin=test, stdout=subprocess.PIPE,  stderr=subprocess.PIPE)
                     except OSError as e:
                         print("%s execution failed: %s" % (cpu.name, e), file=sys.stderr)
                         sys.exit()
@@ -77,7 +77,8 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
                 for j, kernel in enumerate(kernels):
                     for k in range(repeat):
                         try:
-                            result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE)
+                            result = subprocess.run([str(gpu), *kernel], stdin=test, stdout=subprocess.PIPE,
+                                                    stderr=subprocess.PIPE)
                         except OSError as e:
                             print("%s execution failed: %s" % (gpu.name + ' '.join(kernel), e), file=sys.stderr)
                             sys.exit()
