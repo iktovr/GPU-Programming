@@ -12,8 +12,8 @@ cuda: lab2.cu
 cpu: lab2_cpu.cpp
 	$(CXX) $(CFLAGS) -o lab2_cpu lab2_cpu.cpp
 
-bench: lab2_cpu.cpp bench/lab2_gpu.cu
-	$(NVCC) $(CUDA_FLAGS) -o bench/lab2_gpu bench/lab2_gpu.cu
+bench: lab2_cpu.cpp lab2.cu
+	$(NVCC) $(CUDA_FLAGS) -o bench/lab2_gpu -DTIME lab2.cu
 	$(CXX) $(CFLAGS) -o bench/lab2_cpu -DTIME lab2_cpu.cpp
 
 stbi: lab2_cpu.cpp

@@ -6,6 +6,7 @@
 #include <fstream>
 
 #include "../common/error_checkers.hpp"
+#include "../common/cuda_timer.hpp"
 
 __constant__ char Wx[3][3], Wy[3][3];
 
@@ -34,8 +35,18 @@ __global__ void sobel_filter(cudaTextureObject_t img, uchar4 *res, int width, in
 		}
 }
 
-int main() {
+int main(int argc, char* argv[]) {
 	std::ios::sync_with_stdio(false);
+#ifdef TIME
+	check(argc < 5, "Expected 4 arguments", true);
+	char *end;
+	dim3 grid_dim(std::strtol(argv[1], &end, 10), std::strtol(argv[2], &end, 10)), 
+	     block_dim(std::strtol(argv[3], &end, 10), std::strtol(argv[4], &end, 10));
+#else
+	(void)argc; (void)argv;
+	dim3 grid_dim(16, 16), 
+	     block_dim(32, 32);
+#endif
 
 	char host_Wx[3][3] = {
 		{-1, 0, 1},
@@ -84,15 +95,24 @@ int main() {
 	tex_desc.normalizedCoords = false;
 
 	cudaTextureObject_t img_tex = 0;
-    cudaCheck(cudaCreateTextureObject(&img_tex, &res_desc, &tex_desc, NULL));
+	cudaCheck(cudaCreateTextureObject(&img_tex, &res_desc, &tex_desc, NULL));
 
-    uchar4 *dev_res;
-    cudaCheck(cudaMalloc(&dev_res, width * height * sizeof(uchar4)));
+	uchar4 *dev_res;
+	cudaCheck(cudaMalloc(&dev_res, width * height * sizeof(uchar4)));
 
-    sobel_filter<<<dim3(16, 16), dim3(32, 32)>>>(img_tex, dev_res, width, height);
-    cudaCheck(cudaDeviceSynchronize());
+#ifdef TIME
+	cudaStartTimer();
+#endif
+
+	sobel_filter<<<grid_dim, block_dim>>>(img_tex, dev_res, width, height);
+	cudaCheck(cudaDeviceSynchronize());
 	cudaCheckLastError();
 
+#ifdef TIME
+	float t;
+	cudaEndTimer(t);
+	std::cout << t;
+#else
 	std::vector<uchar4> res(width * height);
 	res.shrink_to_fit();
 	cudaCheck(cudaMemcpy(res.data(), dev_res, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost));
@@ -103,6 +123,7 @@ int main() {
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
 	out_file.write(reinterpret_cast<char*>(res.data()), sizeof(uchar4) * width * height);
+#endif
 
 	cudaCheck(cudaDestroyTextureObject(img_tex));
 	cudaCheck(cudaFreeArray(dev_img));
