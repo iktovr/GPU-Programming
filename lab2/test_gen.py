@@ -19,7 +19,7 @@ def test_gen(resolution, tests_dir):
             for _ in range(width * height):
                 test.write(struct.pack('BBBB', randrange(256), randrange(256), randrange(256), randrange(256)))
         with open(str(tests_dir / testname.with_suffix('.in')), 'wt') as test:
-            test.write(str(testname) + '\n' + str(testname.with_suffix('.out')))
+            test.write(str(tests_dir / testname) + '\n' + str(tests_dir / testname.with_suffix('.out')))
 
 
 parser = argparse.ArgumentParser()
