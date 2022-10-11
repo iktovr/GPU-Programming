@@ -17,7 +17,7 @@ inline void __cudaCheck(cudaError_t err, const char *const file, const int line)
 
 #endif
 
-#define check(value, msg, err_value) \
+#define check(value, err_value, msg) \
 if ((value) == (err_value)) { \
 	std::cerr << "ERROR: " << (msg) << " at " << __FILE__ << ":" << __LINE__ << '\n'; \
 	exit(0); \

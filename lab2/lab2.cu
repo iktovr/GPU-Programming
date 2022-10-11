@@ -38,7 +38,7 @@ __global__ void sobel_filter(cudaTextureObject_t img, uchar4 *res, int width, in
 int main(int argc, char* argv[]) {
 	std::ios::sync_with_stdio(false);
 #ifdef TIME
-	check(argc < 5, "Expected 4 arguments", true);
+	check(argc < 5, true, "Expected 4 arguments");
 	char *end;
 	dim3 grid_dim(std::strtol(argv[1], &end, 10), std::strtol(argv[2], &end, 10)), 
 	     block_dim(std::strtol(argv[3], &end, 10), std::strtol(argv[4], &end, 10));
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 
 	int width, height;
 	std::ifstream in_file(in_filename, std::ios::binary);
-	check(in_file.is_open(), "failed to open input file", false);
+	check(in_file.is_open(), false, "failed to open input file");
 
 	in_file.read(reinterpret_cast<char*>(&width), sizeof(width));
 	in_file.read(reinterpret_cast<char*>(&height), sizeof(height));
@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 	cudaCheck(cudaMemcpy(res.data(), dev_res, sizeof(uchar4) * width * height, cudaMemcpyDeviceToHost));
 
 	std::ofstream out_file(out_filename, std::ios::binary);
-	check(out_file.is_open(), "failed to open output file", false);
+	check(out_file.is_open(), false, "failed to open output file");
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
