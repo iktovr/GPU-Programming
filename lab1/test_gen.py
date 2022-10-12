@@ -4,13 +4,18 @@
 from random import randint
 from pathlib import Path
 import argparse
+import sys
 
 
 def test_gen(start, stop, tests_dir, counts):
-    assert tests_dir.is_dir()
+    assert tests_dir.is_dir() or not tests_dir.exists()
     
     if not tests_dir.exists():
-        tests_dir.mkdir()
+        try:
+            tests_dir.mkdir()
+        except FileNotFoundError:
+            print('Директория недостижима', file=sys.stderr)
+            sys.exit()
     for count in counts:
         nums = list()
         for i in range(count):
