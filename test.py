@@ -17,7 +17,8 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
         if file.suffix == in_ext:
             if not file.with_suffix(ans_ext).exists():
                 print("Missing answer for test", str(file), file=sys.stderr)
-            tests.append(file)
+            else:
+                tests.append(file)
     tests.sort()
 
     for test in tests:
@@ -28,13 +29,16 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
 
         with open(str(test), 'rt') as test_file:
             try:
-                result = subprocess.run([str(program)], stdin=test_file, stdout=out_file)
+                result = subprocess.run(['./' + str(program)], stdin=test_file, stdout=out_file, stderr=subprocess.PIPE)
             except OSError as e:
                 print("%s execution failed: %s" % (program.name, e), file=sys.stderr)
                 sys.exit()
             if result.returncode != 0:
                 print("%s with test %s return %d" % (program.name, test.name, result.returncode), 
                       file=sys.stderr)
+                sys.exit()
+            if result.stderr.startswith(b"ERROR:"):
+                print("%s %s" % (program.name, result.stderr.decode('utf-8')), file=sys.stderr)
                 sys.exit()
 
         if out_ext is None:
@@ -53,8 +57,7 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
         print(test.stem, ':', sep='', end=' ')
         if len(diff.stdout) == 0:
             print("OK")
-            if out_ext is None:
-                out.unlink()
+            out.unlink()
         else:
             print("WA")
 
