@@ -6,7 +6,9 @@
 #include <fstream>
 
 #include "../common/error_checkers.hpp"
+#ifdef TIME
 #include "../common/cuda_timer.hpp"
+#endif
 
 __constant__ char Wx[3][3], Wy[3][3];
 

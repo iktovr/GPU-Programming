@@ -22,7 +22,7 @@ def replace_header(match):
     return match.group(0).replace(match.group(1), match.group(2))
 
 
-def search_headers(file, root):
+def search_headers(file, root, block):
     files = set()
     with open(file, 'rt') as program:
         for line in program:
@@ -35,7 +35,8 @@ def search_headers(file, root):
                 header = (file.parent.resolve() / header).resolve().relative_to(root)
             except ValueError:
                 print(f"File {header} unreachable from root {root}", file=sys.stderr)
-            files.add(header)
+            if header.name not in block:
+                files.add(header)
     return files
 
 
@@ -46,9 +47,10 @@ def search_headers(file, root):
 @click.option("-o", "output", type=click.Path(exists=True, dir_okay=True, file_okay=False, path_type=Path),
               default='./', help="Директория для архива и подписи")
 @click.option("--sign/--no-sign", default=True, help="Подписывать или нет получившийся архив")
+@click.option("--block", "-b", multiple=True, type=str, help="Имена файлов, которые не надо добавлять в архив")
 @click.argument("source_files", nargs=-1, type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path),
                 required=True)
-def pack(source_files, name, root, output, sign):
+def pack(source_files, name, root, output, sign, block):
     """\
     SOURCE_FILES - Исходные файлы проекта
 
@@ -63,10 +65,10 @@ def pack(source_files, name, root, output, sign):
     
     \b
     Пример:
-    pack.py --no-sign lab1/lab1.cu
+    pack.py --name solution --no-sign lab1/lab1.cu
     Создаст архив:
-    lab1.tar
-    └───lab1
+    solution.tar
+    └───solution
         │   makefile
         ├───common
         │       error_checkers.hpp
@@ -87,7 +89,7 @@ def pack(source_files, name, root, output, sign):
         except ValueError:
             print(f"File {file} unreachable from root {root}", file=sys.stderr)
         sources.append(str(PurePosixPath(file)))
-        headers = search_headers(file, root)
+        headers = search_headers(file, root, block)
         files.update(headers)
 
     with TemporaryDirectory() as tmpdirname:
@@ -98,7 +100,7 @@ def pack(source_files, name, root, output, sign):
             for parent in file.parents[::-1]:
                 if parent == '.' or parent == '..':
                     continue
-            (tar_root / parent).mkdir()
+            (tar_root / parent).mkdir(exist_ok=True)
             shutil.copy(file, tar_root / file)
 
         with open(tar_root / 'makefile', 'wt') as file:
