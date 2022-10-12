@@ -1,4 +1,5 @@
-tests\
+*.docx
+tests/bench/
 
 # CUDA
 *.i
@@ -39,7 +40,6 @@ tests\
 
 # Executables
 *.exe
-*.out
 *.app
 
 # LaTeX
