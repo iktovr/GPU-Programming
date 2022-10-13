@@ -113,22 +113,14 @@ struct matrix3d {
 		}
 	}
 
-	bool decompose(matrix3d& L, matrix3d& U, std::vector<std::pair<size_t, size_t>>& P) const {
+	void decompose(matrix3d& L, matrix3d& U, std::vector<std::pair<size_t, size_t>>& P) const {
 		P.clear();
-		bool zeros = true;
 		for (size_t i = 0; i < size(); ++i) {
 			for (size_t j = 0; j < size(); ++j) {
 				L[i][j] = 0;
 				U[i][j] = data[i][j];
-				if (zeros && U[i][j] != 0) {
-					zeros = false;
-				}
 			}
 			L[i][i] = 1;
-		}
-
-		if (zeros) {
-			return false;
 		}
 
 		for (size_t k = 0; k < size()-1; ++k) {
@@ -156,7 +148,6 @@ struct matrix3d {
 				}
 			}
 		}
-		return true;
 	}
 };
 
@@ -200,22 +191,18 @@ struct LUP3d {
 	matrix3d L;
 	matrix3d U;
 	std::vector<std::pair<size_t, size_t>> P;
-	bool zeros;
 
 	LUP3d() {}
 
 	LUP3d(const matrix3d& matrix) {
-		zeros = !matrix.decompose(L, U, P);
+		matrix.decompose(L, U, P);
 	}
 
 	void assign(const matrix3d& matrix) {
-		zeros = !matrix.decompose(L, U, P);
+		matrix.decompose(L, U, P);
 	}
 
 	double det() {
-		if (zeros) {
-			return 0;
-		}
 		double res = 1;
 		for (size_t i = 0; i < U.size(); ++i) {
 			res *= U[i][i];
@@ -251,10 +238,6 @@ struct LUP3d {
 	}
 
 	matrix3d invert() {
-		if (zeros) {
-			return U;
-		}
-
 		double3 e;
 		matrix3d inv;
 
