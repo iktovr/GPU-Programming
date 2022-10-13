@@ -37,12 +37,12 @@ uint8_t pallete[39][3] = {
 };
 #endif
 
-void maximum_likelihood(uchar4* img, uchar4* res, int length, int class_num, 
+void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_classes, 
                         const double3 mean[32], const matrix3d conv_inv[32], const double conv_det[32]) {
 	for (int i = 0; i < length; ++i) {
 		double max_l, l;
 		uint8_t max_m;
-		for (int m = 0; m < class_num; ++m) {
+		for (int m = 0; m < n_classes; ++m) {
 			l = (mean[m] - img[i]) * conv_inv[m] * (img[i] - mean[m]) - conv_det[m];
 			if (m == 0 || max_l < l) {
 				max_l = l;
@@ -56,8 +56,8 @@ void maximum_likelihood(uchar4* img, uchar4* res, int length, int class_num,
 int main() {
 	std::ios::sync_with_stdio(false);
 	std::string in_filename, out_filename;
-	int n;
-	std::cin >> in_filename >> out_filename >> n;
+	int n_classes;
+	std::cin >> in_filename >> out_filename >> n_classes;
 
 	int width, height, channels;
 	uchar4 *img;
@@ -76,7 +76,7 @@ int main() {
 	uchar4 color;
 	uint16_t tmp;
 	std::vector<uchar4> colors;
-	for (int i = 0; i < n; ++i) {
+	for (int i = 0; i < n_classes; ++i) {
 		std::cin >> m;
 		colors.clear();
 		for (int j = 0; j < m; ++j) {
@@ -113,7 +113,7 @@ int main() {
 	
 	int m, x, y;
 	std::vector<std::pair<int, int>> coords;
-	for (int i = 0; i < n; ++i) {
+	for (int i = 0; i < n_classes; ++i) {
 		std::cin >> m;
 		coords.clear();
 		for (int j = 0; j < m; ++j) {
@@ -143,7 +143,7 @@ int main() {
 	steady_clock::time_point start = steady_clock::now();
 #endif
 
-	maximum_likelihood(img, res.data(), width * height, n, mean, conv_inv, conv_det);
+	maximum_likelihood(img, res.data(), width * height, n_classes, mean, conv_inv, conv_det);
 
 #ifdef TIME
 	steady_clock::time_point end = steady_clock::now();

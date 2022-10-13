@@ -2,12 +2,12 @@
 #include <cmath>
 #include <fstream>
 
+#include "../common/error_checkers.hpp"
+#include "matrix.hpp"
+
 #ifdef TIME
 #include "../common/cuda_timer.hpp"
 #endif
-
-#include "../common/error_checkers.hpp"
-#include "matrix.hpp"
 
 using std::log;
 using std::abs;
@@ -16,16 +16,16 @@ __constant__ double3 mean[32];
 __constant__ double conv_inv[32][9];
 __constant__ double conv_det[32];
 
-__global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int class_num) {
+__global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_classes) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int offset = blockDim.x * gridDim.x;
 	
 	for (; idx < length; idx += offset) {
 		double max_l, l;
 		uint8_t max_m;
-		for (int m = 0; m < class_num; ++m) {
-			matrix3d conv_inv_m = *reinterpret_cast<matrix3d*>(conv_inv[m]);
-			l = (mean[m] - img[idx]) * conv_inv_m * (img[idx] - mean[m]) - conv_det[m];
+		for (int m = 0; m < n_classes; ++m) {
+			matrix3d* conv_inv_m = reinterpret_cast<matrix3d*>(conv_inv[m]);
+			l = (mean[m] - img[idx]) * (*conv_inv_m) * (img[idx] - mean[m]) - conv_det[m];
 			if (m == 0 || max_l < l) {
 				max_l = l;
 				max_m = m;
@@ -49,14 +49,14 @@ int main(int argc, char* argv[]) {
 #endif
 
 	std::string in_filename, out_filename;
-	int n;
-	std::cin >> in_filename >> out_filename >> n;
+	int n_classes;
+	std::cin >> in_filename >> out_filename >> n_classes;
 
 	int width, height, channels;
 	uchar4 *img;
-	double3 host_mean[32];
-	matrix3d conv[32], host_conv_inv[32];
-	double host_conv_det[32];
+	double3 h_mean[32];
+	matrix3d conv[32], h_conv_inv[32];
+	double h_conv_det[32];
 	LUP3d lup;
 
 	std::ifstream in_file(in_filename, std::ios::binary);
@@ -73,30 +73,30 @@ int main(int argc, char* argv[]) {
 	
 	int m, x, y;
 	std::vector<std::pair<int, int>> coords;
-	for (int i = 0; i < n; ++i) {
+	for (int i = 0; i < n_classes; ++i) {
 		std::cin >> m;
 		coords.clear();
 		for (int j = 0; j < m; ++j) {
 			std::cin >> x >> y;
 			coords.push_back({x, y});
-			host_mean[i] += img[y * width + x];
+			h_mean[i] += img[y * width + x];
 		}
-		host_mean[i] /= m;
+		h_mean[i] /= m;
 
 		for (int j = 0; j < m; ++j) {
 			x = coords[j].first;
 			y = coords[j].second;
-			conv[i] += matmul(img[y * width + x] - host_mean[i], img[y * width + x] - host_mean[i]);
+			conv[i] += matmul(img[y * width + x] - h_mean[i], img[y * width + x] - h_mean[i]);
 		}
 		conv[i] /= (m-1);
 		lup.assign(conv[i]);
-		host_conv_det[i] = log(abs(lup.det()));
-		host_conv_inv[i] = lup.invert();
+		h_conv_det[i] = log(abs(lup.det()));
+		h_conv_inv[i] = lup.invert();
 	}
 
-	cudaCheck(cudaMemcpyToSymbol(mean, host_mean, sizeof(double3) * 32));
-	cudaCheck(cudaMemcpyToSymbol(conv_inv, host_conv_inv, sizeof(matrix3d) * 32));
-	cudaCheck(cudaMemcpyToSymbol(conv_det, host_conv_det, sizeof(double) * 32));
+	cudaCheck(cudaMemcpyToSymbol(mean, h_mean, sizeof(double3) * 32));
+	cudaCheck(cudaMemcpyToSymbol(conv_inv, h_conv_inv, sizeof(matrix3d) * 32));
+	cudaCheck(cudaMemcpyToSymbol(conv_det, h_conv_det, sizeof(double) * 32));
 
 	uchar4 *dev_img, *dev_res;
 	cudaCheck(cudaMalloc(&dev_img, width * height * channels));
@@ -107,7 +107,7 @@ int main(int argc, char* argv[]) {
 	cudaStartTimer();
 #endif
 
-	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, dev_res, width * height, n);
+	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, dev_res, width * height, n_classes);
 
 #ifdef TIME
 	float t;
