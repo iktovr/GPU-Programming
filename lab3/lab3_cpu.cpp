@@ -148,11 +148,11 @@ int main() {
 #else
 
 #ifdef STBI
-	for (uchar4& px: res) {
-		px.x = mean[px.w].x;
-		px.y = mean[px.w].y;
-		px.z = mean[px.w].z;
-		px.w = 255;
+	for (int i = 0; i < width * height; ++i) {
+		img[i].x = mean[img[i].w].x;
+		img[i].y = mean[img[i].w].y;
+		img[i].z = mean[img[i].w].z;
+		img[i].w = 255;
 	}
 	stbi_write_png(out_filename.c_str(), width, height, channels, reinterpret_cast<uint8_t*>(img), width * channels);
 #else

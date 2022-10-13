@@ -4,7 +4,11 @@ CXX = g++
 CUDA_FLAGS = --std=c++11 -Werror cross-execution-space-call -lm
 CFLAGS = --std=c++11 -Wall -Wextra -pedantic
 
-all: cuda cpu bench
+.PHONY: all main cuda cpu bench stbi
+
+all: main bench
+
+main: cuda cpu
 
 cuda: lab2.cu
 	$(NVCC) $(CUDA_FLAGS) -o lab2 lab2.cu

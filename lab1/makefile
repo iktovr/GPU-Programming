@@ -4,6 +4,8 @@ CXX = g++
 CUDA_FLAGS = --std=c++11 -Werror cross-execution-space-call -lm
 CFLAGS = --std=c++11 -Wall -Wextra -pedantic
 
+.PHONY: all cuda bench
+
 all: cuda bench
 
 cuda: lab1.cu
