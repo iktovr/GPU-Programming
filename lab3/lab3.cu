@@ -1,17 +1,6 @@
 #include <vector>
 #include <cmath>
-
-// #define STBI
-
-// #ifdef STBI
-// #define STB_IMAGE_IMPLEMENTATION
-// #include "../external/stb/stb_image.h"
-// #define STB_IMAGE_WRITE_IMPLEMENTATION
-// #include "../external/stb/stb_image_write.h"
-// #include <cassert>
-// #else
-// #include <fstream>
-// #endif
+#include <fstream>
 
 #ifdef TIME
 #include "../common/cuda_timer.hpp"
@@ -24,7 +13,7 @@ using std::log;
 using std::abs;
 
 __constant__ double3 mean[32];
-__constant__ matrix3d conv_inv[32];
+__constant__ double conv_inv[32][9];
 __constant__ double conv_det[32];
 
 __global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int class_num) {
@@ -35,7 +24,8 @@ __global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int cla
 		double max_l, l;
 		uint8_t max_m;
 		for (int m = 0; m < class_num; ++m) {
-			l = (mean[m] - img[idx]) * conv_inv[m] * (img[idx] - mean[m]) - conv_det[m];
+			matrix3d conv_inv_m = *reinterpret_cast<matrix3d*>(conv_inv[m]);
+			l = (mean[m] - img[idx]) * conv_inv_m * (img[idx] - mean[m]) - conv_det[m];
 			if (m == 0 || max_l < l) {
 				max_l = l;
 				max_m = m;
@@ -69,38 +59,6 @@ int main(int argc, char* argv[]) {
 	double host_conv_det[32];
 	LUP3d lup;
 
-// #ifdef STBI
-// 	img = reinterpret_cast<uchar4*>(stbi_load(in_filename.c_str(), &width, &height, &channels, 0));
-// 	assert(channels == 4);
-// 	check(img, NULL, "error loading image");
-
-// 	int m;
-// 	uchar4 color;
-// 	uint16_t tmp;
-// 	std::vector<uchar4> colors;
-// 	for (int i = 0; i < n; ++i) {
-// 		std::cin >> m;
-// 		colors.clear();
-// 		for (int j = 0; j < m; ++j) {
-// 			std::cin >> tmp; color.x = tmp;
-// 			std::cin >> tmp; color.y = tmp;
-// 			std::cin >> tmp; color.z = tmp;
-// 			colors.push_back(color);
-// 			host_mean[i] += color;
-// 		}
-// 		host_mean[i] /= m;
-// 		// std::cout << matmul(color - host_mean[i], color - host_mean[i]) << '\n';
-
-// 		for (int j = 0; j < m; ++j) {
-// 			conv[i] += matmul(colors[j] - host_mean[i], colors[j] - host_mean[i]);
-// 		}
-// 		conv[i] /= m - 1;
-// 		lup.assign(conv[i]);
-// 		host_conv_det[i] = log(abs(lup.det()));
-// 		host_conv_inv[i] = lup.invert();
-// 		// std::cout << host_mean[i] << '\n' << conv[i] << '\n' << host_conv_inv[i] << '\n' << host_conv_det[i] << '\n';
-// 	}
-// #else
 	std::ifstream in_file(in_filename, std::ios::binary);
 	check(in_file.is_open(), false, "failed to open input file");
 
@@ -134,9 +92,7 @@ int main(int argc, char* argv[]) {
 		lup.assign(conv[i]);
 		host_conv_det[i] = log(abs(lup.det()));
 		host_conv_inv[i] = lup.invert();
-		// std::cout << host_mean[i] << '\n' << conv[i] << '\n' << host_conv_inv[i] << '\n' << host_conv_det[i] << '\n';
 	}
-// #endif
 
 	cudaCheck(cudaMemcpyToSymbol(mean, host_mean, sizeof(double3) * 32));
 	cudaCheck(cudaMemcpyToSymbol(conv_inv, host_conv_inv, sizeof(matrix3d) * 32));
@@ -145,36 +101,31 @@ int main(int argc, char* argv[]) {
 	uchar4 *dev_img, *dev_res;
 	cudaCheck(cudaMalloc(&dev_img, width * height * channels));
 	cudaCheck(cudaMalloc(&dev_res, width * height * channels));
+	cudaCheck(cudaMemcpy(dev_img, img, width * height * channels, cudaMemcpyHostToDevice));
 
 #ifdef TIME
+	cudaStartTimer();
 #endif
 
 	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, dev_res, width * height, n);
 
-// #ifdef TIME
-// #else
+#ifdef TIME
+	float t;
+	cudaEndTimer(t);
+	std::cout << t;
+#else
+	std::vector<uchar4> res(width * height);
+	res.shrink_to_fit();
+	cudaCheck(cudaMemcpy(res.data(), dev_res, width * height * channels, cudaMemcpyDeviceToHost));
 
-// #ifdef STBI
-// 	for (uchar4& px: res) {
-// 		px.x = mean[px.w].x;
-// 		px.y = mean[px.w].y;
-// 		px.z = mean[px.w].z;
-// 		px.w = 255;
-// 	}
-// 	stbi_write_png(out_filename.c_str(), width, height, channels, reinterpret_cast<uint8_t*>(res.data()), width * channels);
-// #else
 	std::ofstream out_file(out_filename, std::ios::binary);
 	check(out_file.is_open(), false, "failed to open output file");
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
-	out_file.write(reinterpret_cast<char*>(res), width * height * channels);
-// #endif
-// #endif
+	out_file.write(reinterpret_cast<char*>(res.data()), width * height * channels);
+#endif
 
-// #ifdef STBI
-// 	stbi_image_free(reinterpret_cast<uint8_t*>(img));
-// #endif
 	cudaCheck(cudaFree(dev_img));
 	cudaCheck(cudaFree(dev_res));
 	return 0;

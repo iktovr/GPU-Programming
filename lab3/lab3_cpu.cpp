@@ -1,7 +1,7 @@
 #include <vector>
 #include <cmath>
 
-#define STBI
+// #define STBI
 
 #ifdef STBI
 #define STB_IMAGE_IMPLEMENTATION
@@ -49,7 +49,7 @@ void maximum_likelihood(uchar4* img, uchar4* res, int length, int class_num,
 				max_m = m;
 			}
 		}
-		res[i] = {img[i].x, img[i].y, img[i].z, max_m};
+		res[i] = uchar4(img[i].x, img[i].y, img[i].z, max_m);
 	}
 }
 
