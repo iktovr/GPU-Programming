@@ -16,7 +16,7 @@ __constant__ double3 mean[32];
 __constant__ double conv_inv[32][9];
 __constant__ double conv_det[32];
 
-__global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_classes) {
+__global__ void maximum_likelihood(uchar4* img, int length, int n_classes) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int offset = blockDim.x * gridDim.x;
 	
@@ -31,7 +31,7 @@ __global__ void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_c
 				max_m = m;
 			}
 		}
-		res[idx] = make_uchar4(img[idx].x, img[idx].y, img[idx].z, max_m);
+		img[idx].w = max_m;
 	}
 }
 
@@ -98,35 +98,31 @@ int main(int argc, char* argv[]) {
 	cudaCheck(cudaMemcpyToSymbol(conv_inv, h_conv_inv, sizeof(matrix3d) * 32));
 	cudaCheck(cudaMemcpyToSymbol(conv_det, h_conv_det, sizeof(double) * 32));
 
-	uchar4 *dev_img, *dev_res;
+	uchar4 *dev_img;
 	cudaCheck(cudaMalloc(&dev_img, width * height * channels));
-	cudaCheck(cudaMalloc(&dev_res, width * height * channels));
 	cudaCheck(cudaMemcpy(dev_img, img, width * height * channels, cudaMemcpyHostToDevice));
 
 #ifdef TIME
 	cudaStartTimer();
 #endif
 
-	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, dev_res, width * height, n_classes);
+	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, width * height, n_classes);
 
 #ifdef TIME
 	float t;
 	cudaEndTimer(t);
 	std::cout << t;
 #else
-	std::vector<uchar4> res(width * height);
-	res.shrink_to_fit();
-	cudaCheck(cudaMemcpy(res.data(), dev_res, width * height * channels, cudaMemcpyDeviceToHost));
+	cudaCheck(cudaMemcpy(imgv.data(), dev_img, width * height * channels, cudaMemcpyDeviceToHost));
 
 	std::ofstream out_file(out_filename, std::ios::binary);
 	check(out_file.is_open(), false, "failed to open output file");
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
-	out_file.write(reinterpret_cast<char*>(res.data()), width * height * channels);
+	out_file.write(reinterpret_cast<char*>(imgv.data()), width * height * channels);
 #endif
 
 	cudaCheck(cudaFree(dev_img));
-	cudaCheck(cudaFree(dev_res));
 	return 0;
 }

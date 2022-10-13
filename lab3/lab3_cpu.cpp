@@ -37,7 +37,7 @@ uint8_t pallete[39][3] = {
 };
 #endif
 
-void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_classes, 
+void maximum_likelihood(uchar4* img, int length, int n_classes, 
                         const double3 mean[32], const matrix3d conv_inv[32], const double conv_det[32]) {
 	for (int i = 0; i < length; ++i) {
 		double max_l, l;
@@ -49,7 +49,7 @@ void maximum_likelihood(uchar4* img, uchar4* res, int length, int n_classes,
 				max_m = m;
 			}
 		}
-		res[i] = uchar4(img[i].x, img[i].y, img[i].z, max_m);
+		img[i].w = max_m;
 	}
 }
 
@@ -136,14 +136,11 @@ int main() {
 	}
 #endif
 
-	std::vector<uchar4> res(width * height);
-	res.shrink_to_fit();
-
 #ifdef TIME
 	steady_clock::time_point start = steady_clock::now();
 #endif
 
-	maximum_likelihood(img, res.data(), width * height, n_classes, mean, conv_inv, conv_det);
+	maximum_likelihood(img, width * height, n_classes, mean, conv_inv, conv_det);
 
 #ifdef TIME
 	steady_clock::time_point end = steady_clock::now();
@@ -157,14 +154,14 @@ int main() {
 		px.z = mean[px.w].z;
 		px.w = 255;
 	}
-	stbi_write_png(out_filename.c_str(), width, height, channels, reinterpret_cast<uint8_t*>(res.data()), width * channels);
+	stbi_write_png(out_filename.c_str(), width, height, channels, reinterpret_cast<uint8_t*>(img), width * channels);
 #else
 	std::ofstream out_file(out_filename, std::ios::binary);
 	check(out_file.is_open(), false, "failed to open output file");
 
 	out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
 	out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
-	out_file.write(reinterpret_cast<char*>(res.data()), width * height * channels);
+	out_file.write(reinterpret_cast<char*>(imgv.data()), width * height * channels);
 #endif
 #endif
 
