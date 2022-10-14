@@ -11,10 +11,14 @@ import sys
 def test_gen(resolution, tests_dir):
     if tests_dir.exists() and not tests_dir.is_dir():
         print("Tests dir is not a dir", file=sys.stderr)
-        sys.exit();
+        sys.exit()
     
     if not tests_dir.exists():
-        tests_dir.mkdir()
+        try:
+            tests_dir.mkdir()
+        except FileNotFoundError:
+            print("Tests dir is unreachable")
+
     for width, height in [map(int, res.split('x')) for res in resolution]:
         testname = Path("test%dx%d.data" % (width, height))
         with open(str(tests_dir / testname), "wb") as test:

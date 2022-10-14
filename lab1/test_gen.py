@@ -13,7 +13,11 @@ def test_gen(start, stop, tests_dir, counts):
         sys.exit()
     
     if not tests_dir.exists():
-        tests_dir.mkdir()
+        try:
+            tests_dir.mkdir()
+        except FileNotFoundError:
+            print("Tests dir is unreachable")
+
     for count in counts:
         nums = list()
         for i in range(count):
