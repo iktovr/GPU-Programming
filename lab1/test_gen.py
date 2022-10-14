@@ -4,10 +4,12 @@
 from random import randint
 from pathlib import Path
 import argparse
+import sys
 
 
 def test_gen(start, stop, tests_dir, counts):
-    assert tests_dir.is_dir()
+    if tests_dir.exists() and not tests_dir.is_dir():
+        print("Tests dir is not a dir", file=sys.stderr)
     
     if not tests_dir.exists():
         tests_dir.mkdir()
