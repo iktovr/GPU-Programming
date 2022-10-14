@@ -80,14 +80,28 @@ struct matrix3d {
 		return 3;
 	}
 
-	matrix3d transpose() {
-		matrix3d result;
-		for (size_t i = 0; i < size(); ++i) {
-			for (size_t j = 0; j < size(); ++j) {
-				result[i][j] = data[j][i];
-			}
-		}
-		return result;
+	double det() {
+		return data[0][0] * data[1][1] * data[2][2] + 
+		       data[0][1] * data[1][2] * data[2][0] + 
+		       data[0][2] * data[1][0] * data[2][1] - 
+		       data[0][2] * data[1][1] * data[2][0] - 
+		       data[0][0] * data[1][2] * data[2][1] - 
+		       data[0][1] * data[1][0] * data[2][2];
+	}
+
+	matrix3d invert() {
+		double invdet = 1. / det();
+		return {
+			(data[1][1] * data[2][2] - data[2][1] * data[1][2]) * invdet,
+			(data[0][2] * data[2][1] - data[0][1] * data[2][2]) * invdet,
+			(data[0][1] * data[1][2] - data[0][2] * data[1][1]) * invdet,
+			(data[1][2] * data[2][0] - data[1][0] * data[2][2]) * invdet,
+			(data[0][0] * data[2][2] - data[0][2] * data[2][0]) * invdet,
+			(data[1][0] * data[0][2] - data[0][0] * data[1][2]) * invdet,
+			(data[1][0] * data[2][1] - data[2][0] * data[1][1]) * invdet,
+			(data[2][0] * data[0][1] - data[0][0] * data[2][1]) * invdet,
+			(data[0][0] * data[1][1] - data[1][0] * data[0][1]) * invdet
+		};
 	}
 
 	void swap_rows(size_t i, size_t j) {

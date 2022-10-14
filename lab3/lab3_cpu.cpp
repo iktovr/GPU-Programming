@@ -42,8 +42,10 @@ void maximum_likelihood(uchar4* img, int length, int n_classes,
 	for (int i = 0; i < length; ++i) {
 		double max_l, l;
 		uint8_t max_m;
+		double3 v;
 		for (int m = 0; m < n_classes; ++m) {
-			l = (mean[m] - img[i]) * conv_inv[m] * (img[i] - mean[m]) - conv_det[m];
+			v = img[i] - mean[m];
+			l = -(v * conv_inv[m] * v) - conv_det[m];
 			if (m == 0 || max_l < l) {
 				max_l = l;
 				max_m = m;
@@ -126,12 +128,15 @@ int main() {
 		for (int j = 0; j < m; ++j) {
 			x = coords[j].first;
 			y = coords[j].second;
-			conv[i] += matmul(img[y * width + x] - mean[i], img[y * width + x] - mean[i]);
+			double3 v = img[y * width + x] - mean[i];
+			conv[i] += matmul(v, v);
 		}
 		conv[i] /= (m-1);
 		lup.assign(conv[i]);
-		conv_det[i] = log(abs(lup.det()));
-		conv_inv[i] = lup.invert();
+		conv_det[i] = log(abs(conv[i].det()));
+		conv_inv[i] = conv[i].invert();
+		// conv_det[i] = log(abs(lup.det()));
+		// conv_inv[i] = lup.invert();
 		// std::cout << mean[i] << '\n' << conv[i] << '\n' << conv_inv[i] << '\n' << conv_det[i] << '\n';
 	}
 #endif

@@ -93,9 +93,8 @@ int main(int argc, char* argv[]) {
 			conv[i] += matmul(v, v);
 		}
 		conv[i] /= (m-1);
-		lup.assign(conv[i]);
-		h_conv_det[i] = log(abs(lup.det()));
-		h_conv_inv[i] = lup.invert();
+		h_conv_det[i] = log(abs(conv[i].det()));
+		h_conv_inv[i] = conv[i].invert();
 	}
 
 	cudaCheck(cudaMemcpyToSymbol(mean, h_mean, sizeof(double3) * 32));
