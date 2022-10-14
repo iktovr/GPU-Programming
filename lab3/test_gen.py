@@ -11,6 +11,7 @@ import sys
 def test_gen(resolution, tests_dir):
     if tests_dir.exists() and not tests_dir.is_dir():
         print("Tests dir is not a dir", file=sys.stderr)
+        sys.exit()
     
     if not tests_dir.exists():
         tests_dir.mkdir()
