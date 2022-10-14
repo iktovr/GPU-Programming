@@ -31,11 +31,6 @@ inline const double& get(const double3& a, size_t i) {
 }
 
 __host__ __device__
-double3 operator-(const double3& a, const uchar4& b) {
-	return {a.x - b.x, a.y - b.y, a.z - b.z};
-}
-
-__host__ __device__
 double3 operator-(const uchar4& a, const double3& b) {
 	return {a.x - b.x, a.y - b.y, a.z - b.z};
 }
