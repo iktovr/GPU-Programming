@@ -8,8 +8,14 @@ import subprocess
 import re
 
 
-def print_table(table, headers=None, hsep='-', vsep='|'):
-    assert headers is None or len(table[0]) == len(headers)
+STYLES = {
+    'md': ['-', '|', '|', '|'],
+    'tex': ['', '&', '', r'\\']
+}
+
+
+def print_table(table, headers, hsep, vsep, startvsep, endvsep):
+    assert len(table[0]) == len(headers)
 
     column_width = []
     for i, col in enumerate(zip(*table)):
@@ -18,17 +24,18 @@ def print_table(table, headers=None, hsep='-', vsep='|'):
             column_width[-1] = max(column_width[-1], len(str(headers[i])))
 
     if headers is not None:
-        print(vsep, vsep.join([' {:%d} ' % i for i in column_width]).format(*headers), vsep, sep='')
-        print(vsep, vsep.join([hsep * (i + 2) for i in column_width]), vsep, sep='')
+        print(startvsep, vsep.join([' {:%d} ' % i for i in column_width]).format(*headers), endvsep, sep='')
+        if hsep != '':
+            print(startvsep, vsep.join([hsep * (i + 2) for i in column_width]), endvsep, sep='')
 
     for row in table:
-        print(vsep, 
+        print(startvsep, 
               vsep.join([(' {:%d.6f} ' if type(row[i]) is float else ' {:%d} ') % w 
                          for i, w in enumerate(column_width)]).format(*row), 
-              vsep, sep='')
+              endvsep, sep='')
 
 
-def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
+def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style):
     if pattern is not None:
         file_re = re.compile(pattern)
 
@@ -93,7 +100,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern):
                         test.seek(0)
                     table[j+1][i+1] = sum(time) / repeat
 
-    print_table(table, headers=headers)
+    print_table(table, headers, *STYLES[style])
 
 
 def grid_dim(value):
@@ -106,6 +113,7 @@ parser.add_argument("--cpu", type=Path, default=None, help="Исполняемы
 parser.add_argument("--tests", "-t", nargs="*", type=Path, help="Тестовые файлы (директории)")
 parser.add_argument("--repeat", "-r", type=int, default=1, help="Число запусков каждой конфигурации")
 parser.add_argument("--pattern", "-p", type=str, default=None, help="Регулярное выражения имен тестов")
+parser.add_argument("--style", "-s", type=str, choices=['md', 'tex'], default='md', help="Стиль таблицы")
 parser.add_argument("kernels", nargs="*", type=grid_dim, help="Конфигурации ядра в формате \"DIM1 DIM2 ...\"")
 
 if __name__ == "__main__":
