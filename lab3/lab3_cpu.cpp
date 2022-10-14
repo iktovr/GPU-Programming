@@ -66,40 +66,11 @@ int main() {
 	double3 mean[32];
 	matrix3d conv[32], conv_inv[32];
 	double conv_det[32];
-	LUP3d lup;
-
 
 #ifdef STBI
 	img = reinterpret_cast<uchar4*>(stbi_load(in_filename.c_str(), &width, &height, &channels, 0));
 	assert(channels == 4);
 	check(img, NULL, "error loading image");
-
-	int m;
-	uchar4 color;
-	uint16_t tmp;
-	std::vector<uchar4> colors;
-	for (int i = 0; i < n_classes; ++i) {
-		std::cin >> m;
-		colors.clear();
-		for (int j = 0; j < m; ++j) {
-			std::cin >> tmp; color.x = tmp;
-			std::cin >> tmp; color.y = tmp;
-			std::cin >> tmp; color.z = tmp;
-			colors.push_back(color);
-			mean[i] += color;
-		}
-		mean[i] /= m;
-		// std::cout << matmul(color - mean[i], color - mean[i]) << '\n';
-
-		for (int j = 0; j < m; ++j) {
-			conv[i] += matmul(colors[j] - mean[i], colors[j] - mean[i]);
-		}
-		conv[i] /= m - 1;
-		lup.assign(conv[i]);
-		conv_det[i] = log(abs(lup.det()));
-		conv_inv[i] = lup.invert();
-		// std::cout << mean[i] << '\n' << conv[i] << '\n' << conv_inv[i] << '\n' << conv_det[i] << '\n';
-	}
 #else
 	std::ifstream in_file(in_filename, std::ios::binary);
 	check(in_file.is_open(), false, "failed to open input file");
@@ -112,7 +83,8 @@ int main() {
 	imgv.shrink_to_fit();
 	in_file.read(reinterpret_cast<char*>(imgv.data()), width * height * channels);
 	img = imgv.data();
-	
+#endif
+
 	int m, x, y;
 	std::vector<std::pair<int, int>> coords;
 	for (int i = 0; i < n_classes; ++i) {
@@ -132,14 +104,9 @@ int main() {
 			conv[i] += matmul(v, v);
 		}
 		conv[i] /= (m-1);
-		lup.assign(conv[i]);
 		conv_det[i] = log(abs(conv[i].det()));
 		conv_inv[i] = conv[i].invert();
-		// conv_det[i] = log(abs(lup.det()));
-		// conv_inv[i] = lup.invert();
-		// std::cout << mean[i] << '\n' << conv[i] << '\n' << conv_inv[i] << '\n' << conv_det[i] << '\n';
 	}
-#endif
 
 #ifdef TIME
 	steady_clock::time_point start = steady_clock::now();

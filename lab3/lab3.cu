@@ -60,7 +60,6 @@ int main(int argc, char* argv[]) {
 	double3 h_mean[32];
 	matrix3d conv[32], h_conv_inv[32];
 	double h_conv_det[32];
-	LUP3d lup;
 
 	std::ifstream in_file(in_filename, std::ios::binary);
 	check(in_file.is_open(), false, "failed to open input file");
