@@ -6,7 +6,6 @@ from pathlib import Path
 import argparse
 import struct
 import sys
-# import subprocess
 
 
 def test_gen(resolution, tests_dir):
@@ -37,7 +36,7 @@ def test_gen(resolution, tests_dir):
                     test.write(" %d %d" % (x, y))
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Примечание: не генерирует ответы к тестам")
 parser.add_argument("tests_dir", type=Path)
 parser.add_argument("resolution", type=str, nargs="*", 
                     help="resolutions in format WIDTHxHEIGHTxN_CLASSESxCOUNT_PER_CLASS")

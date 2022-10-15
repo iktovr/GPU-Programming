@@ -29,7 +29,7 @@ def test_gen(resolution, tests_dir):
             test.write(str(tests_dir / testname) + '\n' + str(tests_dir / testname.with_suffix('.out')))
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Примечание: не генерирует ответы к тестам")
 parser.add_argument("tests_dir", type=Path)
 parser.add_argument("resolution", type=str, nargs="*", help="resolutions in format WIDTHxHEIGHT")
 

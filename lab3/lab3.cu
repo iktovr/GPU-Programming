@@ -109,6 +109,8 @@ int main(int argc, char* argv[]) {
 #endif
 
 	maximum_likelihood<<<grid_dim, block_dim>>>(dev_img, width * height, n_classes);
+	cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
 
 #ifdef TIME
 	float t;

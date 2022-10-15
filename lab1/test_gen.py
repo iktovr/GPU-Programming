@@ -32,7 +32,7 @@ def test_gen(start, stop, tests_dir, counts):
             ans.write('\n')
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Примечание: также генерирует ответы к тестам")
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--stop", type=int, default=1e6)
 parser.add_argument("tests_dir", type=Path)
