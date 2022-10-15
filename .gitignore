@@ -49,7 +49,6 @@ tests/bench/
 *.log
 *.lot
 *.fls
-*.out
 *.toc
 *.fmt
 *.fot
