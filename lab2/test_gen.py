@@ -17,7 +17,7 @@ def test_gen(resolution, tests_dir):
         try:
             tests_dir.mkdir()
         except FileNotFoundError:
-            print("Tests dir is unreachable")
+            print("Tests dir is unreachable", file=sys.stderr)
 
     for width, height in [map(int, res.split('x')) for res in resolution]:
         testname = Path("test%dx%d.data" % (width, height))

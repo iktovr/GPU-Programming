@@ -16,7 +16,7 @@ def test_gen(start, stop, tests_dir, counts):
         try:
             tests_dir.mkdir()
         except FileNotFoundError:
-            print("Tests dir is unreachable")
+            print("Tests dir is unreachable", file=sys.stderr)
 
     for count in counts:
         nums = list()
