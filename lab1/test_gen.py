@@ -8,14 +8,16 @@ import sys
 
 
 def test_gen(start, stop, tests_dir, counts):
-    assert tests_dir.is_dir() or not tests_dir.exists()
+    if tests_dir.exists() and not tests_dir.is_dir():
+        print("Tests dir is not a dir", file=sys.stderr)
+        sys.exit()
     
     if not tests_dir.exists():
         try:
             tests_dir.mkdir()
         except FileNotFoundError:
-            print('Директория недостижима', file=sys.stderr)
-            sys.exit()
+            print("Tests dir is unreachable", file=sys.stderr)
+
     for count in counts:
         nums = list()
         for i in range(count):
@@ -30,7 +32,7 @@ def test_gen(start, stop, tests_dir, counts):
             ans.write('\n')
 
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(description="Примечание: также генерирует ответы к тестам")
 parser.add_argument("--start", type=int, default=0)
 parser.add_argument("--stop", type=int, default=1e6)
 parser.add_argument("tests_dir", type=Path)
