@@ -15,17 +15,23 @@
 using std::abs;
 
 struct comparator {
-	__host__ __device__ bool operator<(double a, double b) {
+	__host__ __device__ bool operator()(double a, double b) {
 		return abs(a) < abs(b);
 	}
+};
+
+__device__ void swap(double& a, double& b) {
+	double tmp = a;
+	a = b;
+	b = tmp;
 }
 
-__device__ void swap_rows(double *matrix, int i, int j, int n) {
+__global__ void swap_rows(double *matrix, int i, int j, int n) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int offset = blockDim.x * gridDim.x;
 
-	for (k = idx; k < n; k += offset) {
-		std::swap(matrix[k + i * n], matrix[k + j * n]);
+	for (int k = idx; k < n + 1; k += offset) {
+		swap(matrix[i + k * n], matrix[j + k * n]);
 	}
 }
 
@@ -35,8 +41,8 @@ __global__ void gaussian_solver_step(double *matrix, int row, int n) {
 	int offsetx = blockDim.x * gridDim.x;
 	int offsety = blockDim.y * gridDim.y;
 
-	for (j = row + 1 + idx; j < n + 1; j += offsetx) {
-		for (i = row + 1 + idy; i < n; i += offsety) {
+	for (int j = row + 1 + idx; j < n + 1; j += offsetx) {
+		for (int i = row + 1 + idy; i < n; i += offsety) {
 			matrix[i + j * n] -= matrix[row + j * n] / matrix[row + row * n] * matrix[i + row * n];
 		}
 	}
@@ -72,7 +78,7 @@ int main(int argc, char* argv[]) {
 	double *dev_matrix;
 	cudaCheck(cudaMalloc(&dev_matrix, sizeof(double) * matrix.size()));
 	cudaCheck(cudaMemcpy(dev_matrix, matrix.data(), sizeof(double) * matrix.size(), cudaMemcpyHostToDevice));
-	thrust::device_ptr<double> p_matrix = thrust::device_pointer_cast(dev_arr);
+	thrust::device_ptr<double> p_matrix = thrust::device_pointer_cast(dev_matrix);
 
 	comparator comp;
 	int leading_row;
@@ -82,13 +88,13 @@ int main(int argc, char* argv[]) {
 #endif
 
 	for (int row = 0; row < n; ++row) {
-		leading_row = static_cast<int>(thrust::max_element(p_matrix + row * n + row, p_matrix + (row + 1) * n) - p_matrix);
-		if (j != row) {
-			swap_rows<<<grid_dim.x, block_dim.x>>>(matrix, j, row, n);
+		leading_row = static_cast<int>(thrust::max_element(p_matrix + row * n + row, p_matrix + (row + 1) * n, comp) - (p_matrix + row * n));
+		if (leading_row != row) {
+			swap_rows<<<grid_dim.x, block_dim.x>>>(dev_matrix, leading_row, row, n);
 			cudaCheck(cudaDeviceSynchronize());
 			cudaCheckLastError();
 		}
-		gaussian_solver_step<<<grid_dim, block_dim>>>(matrix, row, n);
+		gaussian_solver_step<<<grid_dim, block_dim>>>(dev_matrix, row, n);
 		cudaCheck(cudaDeviceSynchronize());
 		cudaCheckLastError();
 	}
@@ -110,9 +116,9 @@ int main(int argc, char* argv[]) {
 		x[i] /= matrix[i + i * n];
 	}
 
-	// std::cout << std::setprecision(10) << std::fixed;
+	std::cout << std::setprecision(10) << std::fixed;
 	for (int i = 0; i < n; ++i) {
-		std::cout << ((abs(x[i]) < 1e-4) ? 0 : x[i]) << ' ';
+		std::cout << x[i] << ' ';
 	}
 	std::cout << '\n';
 #endif

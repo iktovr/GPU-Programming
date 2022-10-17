@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # Написан для python 3.5
+# Ответ выдается в не очень хорошем формате, для автоматической проверки почти не пригоден
 
 from random import uniform, randrange, choice
 from pathlib import Path
