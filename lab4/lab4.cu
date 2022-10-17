@@ -20,18 +20,15 @@ struct comparator {
 	}
 };
 
-__device__ void swap(double& a, double& b) {
-	double tmp = a;
-	a = b;
-	b = tmp;
-}
-
 __global__ void swap_rows(double *matrix, int i, int j, int n) {
 	int idx = blockDim.x * blockIdx.x + threadIdx.x;
 	int offset = blockDim.x * gridDim.x;
 
+	double tmp;
 	for (int k = idx; k < n + 1; k += offset) {
-		swap(matrix[i + k * n], matrix[j + k * n]);
+		tmp = matrix[i + k * n];
+		matrix[i + k * n] = matrix[j + k * n];
+		matrix[j + k * n] = tmp;
 	}
 }
 
@@ -57,9 +54,11 @@ int main(int argc, char* argv[]) {
 	     block_dim(std::strtol(argv[3], &end, 10), std::strtol(argv[4], &end, 10));
 #else
 	(void)argc; (void)argv;
-	dim3 grid_dim(16, 16), 
+	dim3 grid_dim(32, 32), 
 	     block_dim(32, 32);
 #endif
+	int grid_dim1 = 10,
+	    block_dim1 = block_dim.x * block_dim.y;
 
 	int n;
 	std::cin >> n;
@@ -90,7 +89,7 @@ int main(int argc, char* argv[]) {
 	for (int row = 0; row < n; ++row) {
 		leading_row = static_cast<int>(thrust::max_element(p_matrix + row * n + row, p_matrix + (row + 1) * n, comp) - (p_matrix + row * n));
 		if (leading_row != row) {
-			swap_rows<<<grid_dim.x, block_dim.x>>>(dev_matrix, leading_row, row, n);
+			swap_rows<<<grid_dim1, block_dim1>>>(dev_matrix, leading_row, row, n);
 			cudaCheck(cudaDeviceSynchronize());
 			cudaCheckLastError();
 		}
