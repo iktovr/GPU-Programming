@@ -47,7 +47,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                     test_files.append(test)
         elif pattern is None or file_re.fullmatch(test_file.name) is not None:
             test_files.append(test_file)
-    test_files.sort()
+    test_files.sort(key=lambda s: (len(s.name), s))
 
     headers = ['name', *[i.name for i in test_files]]
     table = []
@@ -55,10 +55,11 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
 
     try:
         if cpu is not None:
-            table.append(['cpu'])
-            for test_file in test_files:
+            table.append([0 for _ in range(len(test_files)+1)])
+            table[-1][0] = 'cpu'
+            for i, test_file in enumerate(test_files, 1):
                 with open(str(test_file), 'rt') as test:
-                    for i in range(repeat):
+                    for k in range(repeat):
                         try:
                             result = subprocess.run(['./' + str(cpu)], stdin=test, stdout=subprocess.PIPE,  stderr=subprocess.PIPE)
                         except OSError as e:
@@ -71,10 +72,12 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                         if result.stderr.startswith(b"ERROR:"):
                             print("%s %s" % (cpu.name, result.stderr.decode('utf-8')), file=sys.stderr)
                             sys.exit()
-                        time[i] = float(result.stdout)
+                        time[k] = float(result.stdout)
                         test.seek(0)
-                    table[-1].append(sum(time) / repeat)
-            if verbose:
+                    table[-1][i] = sum(time) / repeat
+                if verbose > 1:
+                    print("CPU %s: Done" % test_file.stem)
+            if verbose > 0:
                 print("CPU: Done")
 
         if gpu is not None:
@@ -82,7 +85,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                 table.append([0 for i in range(len(test_files)+1)])
                 table[-1][0] = 'x'.join(kernel)
 
-            for i, test_file in enumerate(test_files):
+            for i, test_file in enumerate(test_files, 1):
                 with open(str(test_file), 'r') as test:
                     for j, kernel in enumerate(kernels):
                         for k in range(repeat):
@@ -101,9 +104,11 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                                 sys.exit()
                             time[k] = float(result.stdout)
                             test.seek(0)
-                        table[j+int(cpu is not None)][i+1] = sum(time) / repeat
-                    if verbose:
-                        print("GPU test %d: Done" % (i+1))
+                        table[j+int(cpu is not None)][i] = sum(time) / repeat
+                        if verbose > 1:
+                            print("GPU %s %s: Done" % (' '.join(kernel), test_file.stem))
+                    if verbose > 0:
+                        print("GPU %s: Done" % test_file.stem)
     
     except KeyboardInterrupt as e:
         print()
@@ -122,7 +127,7 @@ parser.add_argument("--cpu", type=Path, default=None, help="Исполняемы
 parser.add_argument("--repeat", "-r", type=int, default=1, help="Число запусков каждой конфигурации")
 parser.add_argument("--pattern", "-p", type=str, default=None, help="Регулярное выражения имен тестов")
 parser.add_argument("--style", "-s", type=str, choices=['md', 'tex'], default='md', help="Стиль таблицы")
-parser.add_argument("--verbose", "-v", action="store_true")
+parser.add_argument("--verbose", "-v", action="count", default=0)
 parser.add_argument("kernels", nargs="*", type=grid_dim, help="Конфигурации ядра в формате \"DIM1 DIM2 ...\"")
 
 if __name__ == "__main__":
