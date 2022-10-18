@@ -1,5 +1,6 @@
 *.docx
 tests/bench/
+**/report/*.out
 
 # CUDA
 *.i
