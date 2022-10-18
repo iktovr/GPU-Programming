@@ -38,8 +38,8 @@ __global__ void gaussian_solver_step(double *matrix, int row, int n) {
 	int offsetx = blockDim.x * gridDim.x;
 	int offsety = blockDim.y * gridDim.y;
 
-	for (int j = row + 1 + idx; j < n + 1; j += offsetx) {
-		for (int i = row + 1 + idy; i < n; i += offsety) {
+	for (int i = row + 1 + idx; i < n; i += offsetx) {
+		for (int j = row + 1 + idy; j < n + 1; j += offsety) {
 			matrix[i + j * n] -= matrix[row + j * n] / matrix[row + row * n] * matrix[i + row * n];
 		}
 	}
