@@ -1,0 +1,50 @@
+\pagebreak
+\section{Результаты}
+
+\textbf{Анализ программы профилировщиком}
+
+Конфигурация ядра: 32$\times$32, 32$\times$32; размер тестовой матрицы: 2000$\times$2000. Из вывода \texttt{nvprof} убраны нечитаемые названия ядер \texttt{thrust}.
+
+В ядре \texttt{gaussian\_solver\_step} потоки варпа обрабатывают столбцы матрицы:
+\begin{lstlisting}[frame=none, numbers=none, keepspaces=true, language=]
+Invocations                                Event Name      Min      Max      Avg
+Device "GeForce GT 545 (0)"
+        Kernel: gaussian_solver_step(double*, int, int)
+       2000                  global_store_transaction        0   500208   161671
+        Kernel: swap_rows(double*, int, int, int)
+       1994                  global_store_transaction     6144     6144     6144
+\end{lstlisting}
+
+В ядре \texttt{gaussian\_solver\_step} потоки варпа обрабатывают строки матрицы:
+\begin{lstlisting}[frame=none, numbers=none, keepspaces=true, language=]
+Invocations                                Event Name      Min      Max      Avg
+Device "GeForce GT 545 (0)"
+        Kernel: gaussian_solver_step(double*, int, int)
+       2000                  global_store_transaction        0  4002432  1335062
+        Kernel: swap_rows(double*, int, int, int)
+       1994                  global_store_transaction     6144     6144     6144
+\end{lstlisting}
+
+Видно, что во втором случае происходит гораздо больше обращений к глобальной памяти, т.е. объединения запросов не происходит. На практике это приводит к увеличению времени работы в 2-3 раза. 
+
+\textbf{Сравнение времени работы}
+\begin{center}
+\begin{tabular}{|l*{6}{|r}|}
+\hline
+\textbf{Размер матрицы} & 100 & 500 & 1000 & 2000 & 5000 & 10000 \\
+\hline
+\hline
+\textbf{Конфигурация} & \multicolumn{6}{c|}{\textbf{Время выполнения, мс}} \\
+\hline
+CPU                          &  14.8886 &  788.532 & 5958.03 & 47452.10 & 745217 &      - \\
+\hline
+1$\times$1, 32$\times$32     &  36.4768 &  256.299 & 1145.10 &  8840.49 & 114357 &      - \\
+\hline
+32$\times$32, 32$\times$32   &  53.7845 &  287.704 &  932.85 &  4461.41 &  43472 & 411956 \\
+\hline
+64$\times$64, 32$\times$32   &  99.7329 &  547.723 & 1513.98 &  6305.97 &  51747 & 466804 \\
+\hline
+128$\times$128, 32$\times$32 & 284.3100 & 1559.010 & 3640.97 & 10970.80 &  73901 & 518470 \\
+\hline
+\end{tabular}
+\end{center}
