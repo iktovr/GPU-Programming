@@ -3,10 +3,9 @@
 
 #include "../common/error_checkers.hpp"
 
-___global__ void reduce(int* idata, int n, int* odata) {
+__global__ void reduce(int* idata, int* odata) {
 	int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
-	int offset = blockDim.x * gridDim.x;
 
 	extern __shared__ int sdata[];
 
@@ -27,11 +26,11 @@ ___global__ void reduce(int* idata, int n, int* odata) {
 
 const int MAX_BLOCK_SIZE = 1024;
 
-inline int optimal_block_size(int size) {
-	if (size > MAX_BLOCK_SIZE) {
+int optimal_block_size(int size) {
+	if (size >= MAX_BLOCK_SIZE) {
 		return MAX_BLOCK_SIZE;
 	} else {
-		while (size & (size - 1) != 0) {
+		while ((size & (size - 1)) != 0) {
 			size &= size - 1;
 		}
 		return max(size, 32);
@@ -39,11 +38,11 @@ inline int optimal_block_size(int size) {
 }
 
 inline int get_block_count(int size, int block_size) {
-	return (size / block_size + ((size & block_size) > 0)) * block_size;
+	return size / block_size + ((size & (block_size - 1)) > 0);
 }
 
-__host__ int reduce(const std::vector<int>& data) {
-	int block_size = optimal_block_size(size);
+int reduce(const std::vector<int>& data) {
+	int block_size = optimal_block_size(data.size());
 	int block_count = get_block_count(data.size(), block_size);
 	int data_size = block_count * block_size, res_size = block_count;
 	std::vector<int> fill(data_size - data.size(), 0);
@@ -53,7 +52,12 @@ __host__ int reduce(const std::vector<int>& data) {
 	cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
 	cudaCheck(cudaMemcpy(dev_data + data.size(), fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
 	cudaCheck(cudaMalloc(&dev_res, sizeof(int) * res_size));
+
+	// std::cout << block_count << ' ' << block_size << ' ' << data_size << '\n';
+	
 	reduce<<<block_count, block_size, sizeof(int) * block_size>>>(dev_data, dev_res);
+	cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
 	
 	while (res_size > 1) {
 		cudaCheck(cudaMemcpy(dev_data, dev_res, sizeof(int) * block_count, cudaMemcpyDeviceToDevice));
@@ -61,15 +65,20 @@ __host__ int reduce(const std::vector<int>& data) {
 		block_count = get_block_count(block_count, block_size);
 		data_size = block_count * block_size;
 
-		fill.assign(data_size - res_size, 0);
+		fill.resize(data_size - res_size, 0);
 		cudaCheck(cudaMemcpy(dev_data + res_size, fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
 		res_size = block_count;
+		// std::cout << block_count << ' ' << block_size << ' ' << data_size << '\n';
 
 		reduce<<<block_count, block_size, sizeof(int) * block_size>>>(dev_data, dev_res);
+		cudaCheck(cudaDeviceSynchronize());
+		cudaCheckLastError();
 	}
 
 	int res;
 	cudaCheck(cudaMemcpy(&res, dev_res, sizeof(int), cudaMemcpyDeviceToHost));
+	cudaCheck(cudaFree(dev_data));
+	cudaCheck(cudaFree(dev_res));
 	return res;
 }
 
@@ -81,5 +90,7 @@ int main() {
 		std::cin >> data[i];
 	}
 
-	cout << reduce(data);
+	std::cout << reduce(data) << '\n';
+	cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
 }

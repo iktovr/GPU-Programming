@@ -27,7 +27,7 @@ def test_gen(start, stop, tests_dir, counts):
             for num in nums:
                 test.write("%d " % num)
         with open(str(tests_dir / ("test%d.out" % count)), "wt") as ans:
-            ans.write("%d\n" % sum(num))
+            ans.write("%d\n" % sum(nums))
 
 
 parser = argparse.ArgumentParser(description="Примечание: также генерирует ответы к тестам")
