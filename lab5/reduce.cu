@@ -3,15 +3,14 @@
 
 #include "../common/error_checkers.hpp"
 
-__global__ void reduce(int* idata, int* odata) {
+__global__ void reduce(int* idata, int n, int* odata) {
 	int tid = threadIdx.x;
-	int id = blockDim.x * blockIdx.x + threadIdx.x;
+	int id = blockDim.x * blockIdx.x * 2 + threadIdx.x;
 
 	extern __shared__ int sdata[];
 
-	sdata[tid] = idata[id];
+	sdata[tid] = idata[id] + idata[id + blockDim.x];
 	__syncthreads();
-
 	for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
 		if (tid < s) {
 			sdata[tid] += sdata[tid + s];
@@ -24,28 +23,36 @@ __global__ void reduce(int* idata, int* odata) {
 	}
 }
 
-const int MAX_BLOCK_SIZE = 1024;
+const size_t BLOCK_SIZE = 1024;
 
-int optimal_block_size(int size) {
-	if (size >= MAX_BLOCK_SIZE) {
-		return MAX_BLOCK_SIZE;
-	} else {
-		while ((size & (size - 1)) != 0) {
-			size &= size - 1;
-		}
-		return max(size, 32);
-	}
+template <class T>
+inline T get_block_count(T size, T block_size, T log_block_size) {
+	return (size >> (log_block_size + 1)) + ((size & ((block_size << 1) - 1)) > 0);
 }
 
-inline int get_block_count(int size, int block_size) {
-	return size / block_size + ((size & (block_size - 1)) > 0);
+template <class T>
+T ceil_2_pow(T a) {
+	while ((a & (a - 1)) != 0) {
+		a &= a - 1;
+	}
+	return a << 1;
+}
+
+template <class T>
+T log2(T a) {
+	T log = 0;
+	while (a > 1) {
+		++log;
+		a >>= 1;
+	}
+	return log;
 }
 
 int reduce(const std::vector<int>& data) {
-	int block_size = optimal_block_size(data.size());
-	int block_count = get_block_count(data.size(), block_size);
-	int data_size = block_count * block_size, res_size = block_count;
+	size_t data_size = ceil_2_pow(data.size());
 	std::vector<int> fill(data_size - data.size(), 0);
+	size_t log_block_size = log2(BLOCK_SIZE);
+	size_t res_size = get_block_count(data_size, BLOCK_SIZE, log_block_size);
 
 	int *dev_data, *dev_res;
 	cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data_size));
@@ -53,27 +60,20 @@ int reduce(const std::vector<int>& data) {
 	cudaCheck(cudaMemcpy(dev_data + data.size(), fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
 	cudaCheck(cudaMalloc(&dev_res, sizeof(int) * res_size));
 
-	// std::cout << block_count << ' ' << block_size << ' ' << data_size << '\n';
-	
-	reduce<<<block_count, block_size, sizeof(int) * block_size>>>(dev_data, dev_res);
-	cudaCheck(cudaDeviceSynchronize());
-	cudaCheckLastError();
-	
 	while (res_size > 1) {
-		cudaCheck(cudaMemcpy(dev_data, dev_res, sizeof(int) * block_count, cudaMemcpyDeviceToDevice));
-		block_size = optimal_block_size(block_count);
-		block_count = get_block_count(block_count, block_size);
-		data_size = block_count * block_size;
-
-		fill.resize(data_size - res_size, 0);
-		cudaCheck(cudaMemcpy(dev_data + res_size, fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
-		res_size = block_count;
-		// std::cout << block_count << ' ' << block_size << ' ' << data_size << '\n';
-
-		reduce<<<block_count, block_size, sizeof(int) * block_size>>>(dev_data, dev_res);
+		// std::cout << data_size << ' ' << res_size << '\n';
+		reduce<<<res_size, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size, dev_res);
 		cudaCheck(cudaDeviceSynchronize());
 		cudaCheckLastError();
+		std::swap(dev_data, dev_res);
+		data_size = res_size;
+		res_size = get_block_count(data_size, BLOCK_SIZE, log_block_size);
 	}
+
+	// std::cout << data_size << ' ' << res_size << '\n';
+	reduce<<<1, (data_size >> 1), sizeof(int) * (data_size >> 1)>>>(dev_data, data_size, dev_res);
+	cudaCheck(cudaDeviceSynchronize());
+	cudaCheckLastError();
 
 	int res;
 	cudaCheck(cudaMemcpy(&res, dev_res, sizeof(int), cudaMemcpyDeviceToHost));
