@@ -4,26 +4,33 @@
 #include "../common/error_checkers.hpp"
 
 __global__ void reduce(int* idata, int n, int* odata) {
-	int tid = threadIdx.x;
-	int id = blockDim.x * blockIdx.x * 2 + threadIdx.x;
-
 	extern __shared__ int sdata[];
 
-	sdata[tid] = idata[id] + idata[id + blockDim.x];
-	__syncthreads();
-	for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
-		if (tid < s) {
-			sdata[tid] += sdata[tid + s];
-		}
-		__syncthreads();
-	}
+	int tid = threadIdx.x;
+	int id = blockDim.x * 2 * blockIdx.x + threadIdx.x;
+	int offset = blockDim.x * 2 * gridDim.x;
+	int blockId = blockIdx.x;
 
-	if (tid == 0) {
-		odata[blockIdx.x] = sdata[0];
+	while (id < n) {
+		sdata[tid] = idata[id] + idata[id + blockDim.x];
+		__syncthreads();
+		for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
+			if (tid < s) {
+				sdata[tid] += sdata[tid + s];
+			}
+			__syncthreads();
+		}
+
+		if (tid == 0) {
+			odata[blockId] = sdata[0];
+		}
+		id += offset;
+		blockId += gridDim.x;
 	}
 }
 
 const size_t BLOCK_SIZE = 1024;
+const size_t BLOCK_COUNT = 1024;
 
 template <class T>
 inline T get_block_count(T size, T block_size, T log_block_size) {
@@ -62,7 +69,7 @@ int reduce(const std::vector<int>& data) {
 
 	while (res_size > 1) {
 		// std::cout << data_size << ' ' << res_size << '\n';
-		reduce<<<res_size, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size, dev_res);
+		reduce<<<min(res_size, BLOCK_COUNT), BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size, dev_res);
 		cudaCheck(cudaDeviceSynchronize());
 		cudaCheckLastError();
 		std::swap(dev_data, dev_res);
@@ -91,6 +98,4 @@ int main() {
 	}
 
 	std::cout << reduce(data) << '\n';
-	cudaCheck(cudaDeviceSynchronize());
-	cudaCheckLastError();
 }
