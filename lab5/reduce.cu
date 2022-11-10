@@ -39,6 +39,9 @@ inline T get_block_count(T size, T block_size, T log_block_size) {
 
 template <class T>
 T ceil_2_pow(T a) {
+    if (a & (a - 1) == 0) {
+        return a;
+    }
 	while ((a & (a - 1)) != 0) {
 		a &= a - 1;
 	}

@@ -6,9 +6,9 @@
 const size_t BLOCK_SIZE = 1024;
 const size_t BLOCK_COUNT = 1024;
 
-__device__ void bitonic_merge(int i, int *data, int m) {
+__device__ void bitonic_merge(int i, int *data, int m, int start_b) {
     int tmp, k;
-    for (int b = m; b >= 2; b >>= 1) {
+    for (int b = start_b; b >= 2; b >>= 1) {
         if ((i & (b - 1)) < (b >> 1)) {
             k = i + (b >> 1);
             if (((i & m) && (data[i] < data[k])) || 
@@ -35,7 +35,7 @@ __global__ void bitonic_sort_shared_memory(int *data, int size) {
 		__syncthreads();
 
         for (int m = 2; m <= max_m; m <<= 1) {
-            bitonic_merge(tid, sdata, m);
+            bitonic_merge(tid, sdata, m, m);
         }
 
         data[id] = sdata[tid];
@@ -55,7 +55,7 @@ __global__ void bitonic_sort_shared_memory(int *data, int size, int m) {
 		sdata[tid] = data[id];
 		__syncthreads();
 
-        bitonic_merge(tid, sdata, m);
+        bitonic_merge(tid, sdata, m, BLOCK_SIZE);
 
         data[id] = sdata[tid];
 		
@@ -85,6 +85,9 @@ __global__ void bitonic_sort_global_memory(int *data, int size, int m, int b) {
 
 template <class T>
 T ceil_2_pow(T a) {
+    if (a & (a - 1) == 0) {
+        return a;
+    }
 	while ((a & (a - 1)) != 0) {
 		a &= a - 1;
 	}
@@ -93,20 +96,22 @@ T ceil_2_pow(T a) {
 
 std::vector<int> bitonic_sort(std::vector<int> data) {
     size_t data_size = ceil_2_pow(data.size());
+    std::vector<int> fill(data_size - data.size(), 0x7FFFFFFF);
     int *dev_data;
-    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size()));
+    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data_size));
     cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
+    cudaCheck(cudaMemcpy(dev_data + data.size(), fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
 
-    bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data.size());
+    bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size);
     cudaCheck(cudaDeviceSynchronize());
     cudaCheckLastError();
-    for (size_t m = BLOCK_SIZE; m <= data.size(); m <<= 1) {
+    for (size_t m = BLOCK_SIZE << 1; m <= data_size; m <<= 1) {
         for (size_t b = m; b > BLOCK_SIZE; b >>= 1) {
-            bitonic_sort_global_memory<<<BLOCK_COUNT, BLOCK_SIZE>>>(dev_data, data.size(), m, b);
+            bitonic_sort_global_memory<<<BLOCK_COUNT, BLOCK_SIZE>>>(dev_data, data_size, m, b);
             cudaCheck(cudaDeviceSynchronize());
             cudaCheckLastError();
         }
-        bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_COUNT>>>(dev_data, data.size(), m);
+        bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size, m);
         cudaCheck(cudaDeviceSynchronize());
         cudaCheckLastError();
     }

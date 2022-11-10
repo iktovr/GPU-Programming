@@ -19,7 +19,7 @@ def test(program, tests_dir, in_ext, ans_ext, out_ext):
                 print("Missing answer for test", str(file), file=sys.stderr)
             else:
                 tests.append(file)
-    tests.sort()
+    tests.sort(key=lambda s: (len(s.name), s))
 
     for test in tests:
         if out_ext is None:
