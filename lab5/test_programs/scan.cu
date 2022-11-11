@@ -14,19 +14,17 @@ __device__ func_pointer<int> dev_add_func = add_func<int>;
 
 std::vector<int> scan(const std::vector<int>& data) {
     int *dev_data;
-    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size));
+    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size()));
     cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
 
     func_pointer<int> h_add_func;
-    cudaCheck(cudaMemcpyFromSymbol(&h_add_func, dev_add_func, sizeof(func_pointer<int)));
+    cudaCheck(cudaMemcpyFromSymbol(&h_add_func, dev_add_func, sizeof(func_pointer<int>)));
 
-    scan(dev_data, data.size, h_add_func);
+    scan(dev_data, data.size(), h_add_func);
 
     std::vector<int> res(data.size());
     cudaCheck(cudaMemcpy(res.data(), dev_data, sizeof(int) * res.size(), cudaMemcpyDeviceToHost));
-    cudaCheck(cudaFree(dev_data));    
-    cudaCheck(cudaFree(dev_res));
-
+    cudaCheck(cudaFree(dev_data));
     return res;    
 }
 

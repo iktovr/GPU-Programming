@@ -7,7 +7,7 @@
 
 std::vector<int> bitonic_sort(std::vector<int> data) {
     int *dev_data;
-    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size));
+    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size()));
     cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
 
     bitonic_sort(dev_data, data.size(), 0x7FFFFFFF);

@@ -41,7 +41,7 @@ T reduce(T *dev_data, size_t size, func_pointer<T> func, T identity) {
 
 	T *pad_dev_data, *dev_res;
 	cudaCheck(cudaMalloc(&pad_dev_data, sizeof(T) * pad_data_size));
-	cudaCheck(cudaMemcpy(pad_dev_data, data, sizeof(T) * size, cudaMemcpyDeviceToDevice));
+	cudaCheck(cudaMemcpy(pad_dev_data, dev_data, sizeof(T) * size, cudaMemcpyDeviceToDevice));
 	cudaCheck(cudaMemcpy(pad_dev_data + size, fill.data(), sizeof(T) * fill.size(), cudaMemcpyHostToDevice));
 	cudaCheck(cudaMalloc(&dev_res, sizeof(T) * res_size));
 

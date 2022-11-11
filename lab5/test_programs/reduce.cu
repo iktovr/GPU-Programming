@@ -18,7 +18,7 @@ int reduce(const std::vector<int>& data) {
 	cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
 
 	func_pointer<int> h_add_func;
-	cudaCheck(cudaMemcpyFromSymbol(&h_add_func, dev_add_func, sizeof(func_pointer<int)));
+	cudaCheck(cudaMemcpyFromSymbol(&h_add_func, dev_add_func, sizeof(func_pointer<int>)));
 
 	int res = reduce(dev_data, data.size(), h_add_func, 0);
 	cudaCheck(cudaFree(dev_data));

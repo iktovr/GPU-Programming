@@ -6,14 +6,14 @@
 #include "utils.hpp"
 
 template <class T>
-__device__ void bitonic_merge(int i, T *data, int m, int start_b) {
+__device__ void bitonic_merge(int i, int id, T *data, int m, int start_b) {
     int k;
     T tmp;
     for (int b = start_b; b >= 2; b >>= 1) {
         if ((i & (b - 1)) < (b >> 1)) {
             k = i + (b >> 1);
-            if (((i & m) && (data[i] < data[k])) || 
-                (!(i & m) && (data[i] > data[k]))) {
+            if (((id & m) && (data[i] < data[k])) || 
+                (!(id & m) && (data[i] > data[k]))) {
                 tmp = data[i];
                 data[i] = data[k];
                 data[k] = tmp;
@@ -30,14 +30,14 @@ __global__ void bitonic_sort_shared_memory(T *data, int size) {
     int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
 	int offset = blockDim.x * gridDim.x;
-    int max_m = (size < BLOCK_SIZE) ? size : BLOCK_SIZE;
+    int max_m = (size < blockDim.x) ? size : blockDim.x;
 
     while (id < size) {
         sdata[tid] = data[id];
 		__syncthreads();
 
         for (int m = 2; m <= max_m; m <<= 1) {
-            bitonic_merge(tid, sdata, m, m);
+            bitonic_merge(tid, id, sdata, m, m);
         }
 
         data[id] = sdata[tid];
@@ -58,7 +58,7 @@ __global__ void bitonic_sort_shared_memory(T *data, int size, int m) {
 		sdata[tid] = data[id];
 		__syncthreads();
 
-        bitonic_merge(tid, sdata, m, BLOCK_SIZE);
+        bitonic_merge(tid, id, sdata, m, blockDim.x);
 
         data[id] = sdata[tid];
 		
