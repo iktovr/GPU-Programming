@@ -1,29 +1,17 @@
 #include <vector>
 #include <iostream>
+#include <algorithm>
 
-#include "../common/error_checkers.hpp"
+#include "../../common/error_checkers.hpp"
+#include "../hist.hpp"
 
-__global__ void hist(int *data, int size, int *hist) {
-    int id = blockIdx.x * blockDim.x + threadIdx.x;
-    int offset = blockDim.x * gridDim.x;
-
-    while (id < size) {
-        atomicAdd(hist + data[id], 1);
-
-        id += offset;
-    }
-}
-
-std::vector<int> hist(const std::vector<int>& data, int hist_size) {
+std::vector<int> hist(const std::vector<int>& data) {
     int *dev_data, *dev_hist;
     cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size()));
-    cudaCheck(cudaMalloc(&dev_hist, sizeof(int) * hist_size));
     cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemset(dev_hist, 0, sizeof(int) * hist_size));
 
-    hist<<<1024, 1024>>>(dev_data, data.size(), dev_hist);
-    cudaCheck(cudaDeviceSynchronize());
-    cudaCheckLastError();
+    int hist_size = *std::max_element(data.begin(), data.end()) + 1;
+    dev_hist = hist(dev_data, data.size(), hist_size);
 
     std::vector<int> hist(hist_size);
     cudaCheck(cudaMemcpy(hist.data(), dev_hist, sizeof(int) * hist_size, cudaMemcpyDeviceToHost));
@@ -40,7 +28,7 @@ int main() {
 		std::cin >> data[i];
 	}
 
-    std::vector<int> res = hist(data, 32);
+    std::vector<int> res = hist(data);
     for (size_t i = 0; i < res.size(); ++i) {
 		std::cout << res[i] << ' ';
 	}

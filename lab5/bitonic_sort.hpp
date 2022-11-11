@@ -1,13 +1,14 @@
+#pragma once
+
 #include <vector>
-#include <iostream>
 
 #include "../common/error_checkers.hpp"
+#include "utils.hpp"
 
-const size_t BLOCK_SIZE = 1024;
-const size_t BLOCK_COUNT = 1024;
-
-__device__ void bitonic_merge(int i, int *data, int m, int start_b) {
-    int tmp, k;
+template <class T>
+__device__ void bitonic_merge(int i, T *data, int m, int start_b) {
+    int k;
+    T tmp;
     for (int b = start_b; b >= 2; b >>= 1) {
         if ((i & (b - 1)) < (b >> 1)) {
             k = i + (b >> 1);
@@ -22,8 +23,9 @@ __device__ void bitonic_merge(int i, int *data, int m, int start_b) {
     }
 }
 
-__global__ void bitonic_sort_shared_memory(int *data, int size) {
-    extern __shared__ int sdata[];
+template <class T>
+__global__ void bitonic_sort_shared_memory(T *data, int size) {
+    extern __shared__ T sdata[];
 
     int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -44,8 +46,9 @@ __global__ void bitonic_sort_shared_memory(int *data, int size) {
     }
 }
 
-__global__ void bitonic_sort_shared_memory(int *data, int size, int m) {
-    extern __shared__ int sdata[];
+template <class T>
+__global__ void bitonic_sort_shared_memory(T *data, int size, int m) {
+    extern __shared__ T sdata[];
 
     int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -63,10 +66,12 @@ __global__ void bitonic_sort_shared_memory(int *data, int size, int m) {
 	}
 }
 
-__global__ void bitonic_sort_global_memory(int *data, int size, int m, int b) {
+template <class T>
+__global__ void bitonic_sort_global_memory(T *data, int size, int m, int b) {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     int offset = blockDim.x * gridDim.x;
-    int tmp, k;
+    int k;
+    T tmp;
 
     while (i < size) {
         if ((i & (b - 1)) < (b >> 1)) {
@@ -84,54 +89,28 @@ __global__ void bitonic_sort_global_memory(int *data, int size, int m, int b) {
 }
 
 template <class T>
-T ceil_2_pow(T a) {
-    if (a & (a - 1) == 0) {
-        return a;
-    }
-	while ((a & (a - 1)) != 0) {
-		a &= a - 1;
-	}
-	return a << 1;
-}
+void bitonic_sort(T *dev_data, size_t size, T fill_value) {
+    size_t pad_data_size = ceil_2_pow(size);
+    std::vector<T> fill(pad_data_size - size, fill_value);
+    T *pad_dev_data;
+    cudaCheck(cudaMalloc(&pad_dev_data, sizeof(T) * pad_data_size));
+    cudaCheck(cudaMemcpy(pad_dev_data, dev_data, sizeof(T) * size, cudaMemcpyDeviceToDevice));
+    cudaCheck(cudaMemcpy(pad_dev_data + size, fill.data(), sizeof(T) * fill.size(), cudaMemcpyHostToDevice));
 
-std::vector<int> bitonic_sort(std::vector<int> data) {
-    size_t data_size = ceil_2_pow(data.size());
-    std::vector<int> fill(data_size - data.size(), 0x7FFFFFFF);
-    int *dev_data;
-    cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data_size));
-    cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
-    cudaCheck(cudaMemcpy(dev_data + data.size(), fill.data(), sizeof(int) * fill.size(), cudaMemcpyHostToDevice));
-
-    bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size);
+    bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(T) * BLOCK_SIZE>>>(pad_dev_data, pad_data_size);
     cudaCheck(cudaDeviceSynchronize());
     cudaCheckLastError();
-    for (size_t m = BLOCK_SIZE << 1; m <= data_size; m <<= 1) {
+    for (size_t m = BLOCK_SIZE << 1; m <= pad_data_size; m <<= 1) {
         for (size_t b = m; b > BLOCK_SIZE; b >>= 1) {
-            bitonic_sort_global_memory<<<BLOCK_COUNT, BLOCK_SIZE>>>(dev_data, data_size, m, b);
+            bitonic_sort_global_memory<<<BLOCK_COUNT, BLOCK_SIZE>>>(pad_dev_data, pad_data_size, m, b);
             cudaCheck(cudaDeviceSynchronize());
             cudaCheckLastError();
         }
-        bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(int) * BLOCK_SIZE>>>(dev_data, data_size, m);
+        bitonic_sort_shared_memory<<<BLOCK_COUNT, BLOCK_SIZE, sizeof(T) * BLOCK_SIZE>>>(pad_dev_data, pad_data_size, m);
         cudaCheck(cudaDeviceSynchronize());
         cudaCheckLastError();
     }
 
-    cudaCheck(cudaMemcpy(data.data(), dev_data, sizeof(int) * data.size(), cudaMemcpyDeviceToHost));
-    cudaCheck(cudaFree(dev_data));
-    return data;
-}
-
-int main() {
-	int n;
-	std::cin >> n;
-	std::vector<int> data(n);
-	for (int i = 0; i < n; ++i) {
-		std::cin >> data[i];
-	}
-
-    std::vector<int> res = bitonic_sort(data);
-    for (int i = 0; i < n; ++i) {
-		std::cout << res[i] << ' ';
-	}
-    std::cout << '\n';
+    cudaCheck(cudaMemcpy(dev_data, pad_dev_data, sizeof(T) * size, cudaMemcpyDeviceToDevice));
+    cudaCheck(cudaFree(pad_dev_data));
 }

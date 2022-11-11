@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "../common/error_checkers.hpp"
+#include "../../common/error_checkers.hpp"
 
 template <class T>
 using func_t = T (*) (T, T);

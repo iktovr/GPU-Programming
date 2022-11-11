@@ -1,15 +1,7 @@
 #include <vector>
 #include <iostream>
 
-template <class T>
-T log2(T a) {
-	T log = 0;
-	while (a > 1) {
-		++log;
-		a >>= 1;
-	}
-	return log;
-}
+#include "../utils.hpp"
 
 std::vector<int> bitonic_sort(std::vector<int> data) {
 	for (size_t m = 2; m <= data.size(); m <<= 1) {
