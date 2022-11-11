@@ -32,6 +32,9 @@ int main() {
 #else
 	std::cin >> n;
 #endif
+    if (n == 0) {
+        return 0;
+    }
 	std::vector<float> data(n);
 
 #ifdef CHECKER

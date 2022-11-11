@@ -34,6 +34,12 @@ __global__ void reduce(T* idata, int size, T* odata, func_pointer<T> func) {
 
 template <class T>
 T reduce(T *dev_data, size_t size, func_pointer<T> func, T identity) {
+	T res;
+	if (size == 1) {
+		cudaCheck(cudaMemcpy(&res, dev_data, sizeof(T), cudaMemcpyDeviceToHost));
+		return res;
+	}
+
 	size_t pad_data_size = ceil_2_pow(size);
 	std::vector<T> fill(pad_data_size - size, identity);
 	size_t log_block_size = log2(BLOCK_SIZE);
@@ -58,7 +64,6 @@ T reduce(T *dev_data, size_t size, func_pointer<T> func, T identity) {
 	cudaCheck(cudaDeviceSynchronize());
 	cudaCheckLastError();
 
-	T res;
 	cudaCheck(cudaMemcpy(&res, dev_res, sizeof(T), cudaMemcpyDeviceToHost));
 	cudaCheck(cudaFree(pad_dev_data));
 	cudaCheck(cudaFree(dev_res));
