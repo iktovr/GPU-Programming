@@ -138,6 +138,7 @@ void full_scan(T *data, size_t size, func_pointer<T> func) {
 
 template <class T>
 void scan(T *dev_data, size_t size, func_pointer<T> func) {
+    BLOCK_SIZE >>= 1;
     size_t log_block_size = log2(BLOCK_SIZE);
     size_t block_count = get_block_count(size, BLOCK_SIZE, log_block_size);
     size_t pad_data_size = block_count * 2 * BLOCK_SIZE;
@@ -151,4 +152,5 @@ void scan(T *dev_data, size_t size, func_pointer<T> func) {
 
     cudaCheck(cudaMemcpy(dev_data, pad_dev_data, sizeof(T) * size, cudaMemcpyDeviceToDevice));
     cudaCheck(cudaFree(pad_dev_data));    
+    BLOCK_SIZE <<= 1;
 }

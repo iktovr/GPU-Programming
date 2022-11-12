@@ -1,7 +1,7 @@
 #include <vector>
 #include <limits>
 
-// #define CHECKER
+#define CHECKER
 #ifdef CHECKER
 #include <cstdio>
 #else
@@ -10,7 +10,7 @@
 
 #include "../common/error_checkers.hpp"
 #include "utils.hpp"
-bucket_sort_device_functions(long long);
+bucket_sort_device_functions(float);
 #include "bucket_sort.hpp"
 
 template <class T>
@@ -35,7 +35,7 @@ int main() {
     if (n == 0) {
         return 0;
     }
-	std::vector<long long> data(n);
+	std::vector<float> data(n);
 
 #ifdef CHECKER
     std::fread(data.data(), sizeof(float), n, stdin);
