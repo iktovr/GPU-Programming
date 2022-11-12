@@ -7,7 +7,8 @@
 
 template <class T>
 __global__ void reduce(T* idata, int size, T* odata, func_pointer<T> func) {
-	extern __shared__ T sdata[];
+	extern __shared__ uint8_t shared_memory[];
+    T* sdata = (T*)shared_memory;
 
 	int tid = threadIdx.x;
 	int id = blockDim.x * 2 * blockIdx.x + threadIdx.x;

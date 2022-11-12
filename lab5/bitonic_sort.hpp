@@ -25,7 +25,8 @@ __device__ void bitonic_merge(int i, int id, T *data, int m, int start_b) {
 
 template <class T>
 __global__ void bitonic_sort_shared_memory(T *data, int size) {
-    extern __shared__ T sdata[];
+    extern __shared__ uint8_t shared_memory[];
+    T* sdata = (T*)shared_memory;
 
     int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -48,7 +49,8 @@ __global__ void bitonic_sort_shared_memory(T *data, int size) {
 
 template <class T>
 __global__ void bitonic_sort_shared_memory(T *data, int size, int m) {
-    extern __shared__ T sdata[];
+    extern __shared__ uint8_t shared_memory[];
+    T* sdata = (T*)shared_memory;
 
     int tid = threadIdx.x;
 	int id = blockDim.x * blockIdx.x + threadIdx.x;

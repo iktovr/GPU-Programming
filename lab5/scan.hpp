@@ -7,25 +7,26 @@
 
 template <class T>
 __global__ void scan(T* data, func_pointer<T> func) {
-    extern __shared__ T shdata[];
+    extern __shared__ uint8_t shared_memory[];
+    T* sdata = (T*)shared_memory;
 
     int tid = threadIdx.x;
     int block_size = blockDim.x << 1;
 
-    shdata[sh_index(tid)] = data[tid];
-    shdata[sh_index(tid + blockDim.x)] = data[tid + blockDim.x];
+    sdata[sh_index(tid)] = data[tid];
+    sdata[sh_index(tid + blockDim.x)] = data[tid + blockDim.x];
     __syncthreads();
 
     for (int s = 1; s < block_size; s <<= 1) {
         int i = (s << 1) * (tid + 1) - 1;
         if (i < block_size) {
-            shdata[sh_index(i)] = func(shdata[sh_index(i)], shdata[sh_index(i - s)]);
+            sdata[sh_index(i)] = func(sdata[sh_index(i)], sdata[sh_index(i - s)]);
         }
         __syncthreads();
     }
 
     if (tid == 0) {
-        shdata[sh_index(block_size - 1)] = 0;
+        sdata[sh_index(block_size - 1)] = 0;
     }
     __syncthreads();
 
@@ -33,15 +34,15 @@ __global__ void scan(T* data, func_pointer<T> func) {
     for (int s = blockDim.x; s > 0; s >>= 1) {
         int i = (s << 1) * (tid + 1) - 1;
         if (i < block_size) {
-            tmp = shdata[sh_index(i)];
-            shdata[sh_index(i)] = func(shdata[sh_index(i)], shdata[sh_index(i - s)]);
-            shdata[sh_index(i - s)] = tmp;
+            tmp = sdata[sh_index(i)];
+            sdata[sh_index(i)] = func(sdata[sh_index(i)], sdata[sh_index(i - s)]);
+            sdata[sh_index(i - s)] = tmp;
         }
         __syncthreads();
     }
 
-    data[tid] = shdata[sh_index(tid)];
-    data[tid + blockDim.x] = shdata[sh_index(tid + blockDim.x)];
+    data[tid] = sdata[sh_index(tid)];
+    data[tid + blockDim.x] = sdata[sh_index(tid + blockDim.x)];
 }
 
 template <class T>
@@ -61,7 +62,8 @@ __global__ void per_block_func(T *data, T *blocks, int size, func_pointer<T> fun
 
 template <class T>
 __global__ void scan(T *data, int size, T *block_sum, func_pointer<T> func) {
-    extern __shared__ T shdata[];
+    extern __shared__ uint8_t shared_memory[];
+    T* sdata = (T*)shared_memory;
 
     int tid = threadIdx.x;
     int block_size = blockDim.x << 1;
@@ -70,21 +72,21 @@ __global__ void scan(T *data, int size, T *block_sum, func_pointer<T> func) {
 	int blockId = blockIdx.x;
 
     while (id < size) {
-        shdata[sh_index(tid)] = data[id];
-        shdata[sh_index(tid + blockDim.x)] = data[id + blockDim.x];
+        sdata[sh_index(tid)] = data[id];
+        sdata[sh_index(tid + blockDim.x)] = data[id + blockDim.x];
         __syncthreads();
 
         for (int s = 1; s < block_size; s <<= 1) {
             int i = (s << 1) * (tid + 1) - 1;
             if (i < block_size) {
-                shdata[sh_index(i)] = func(shdata[sh_index(i)], shdata[sh_index(i - s)]);
+                sdata[sh_index(i)] = func(sdata[sh_index(i)], sdata[sh_index(i - s)]);
             }
             __syncthreads();
         }
 
         if (tid == 0) {
-            block_sum[blockId] = shdata[sh_index(block_size - 1)];
-            shdata[sh_index(block_size - 1)] = 0;
+            block_sum[blockId] = sdata[sh_index(block_size - 1)];
+            sdata[sh_index(block_size - 1)] = 0;
         }
         __syncthreads();
 
@@ -92,15 +94,15 @@ __global__ void scan(T *data, int size, T *block_sum, func_pointer<T> func) {
         for (int s = blockDim.x; s > 0; s >>= 1) {
             int i = (s << 1) * (tid + 1) - 1;
             if (i < block_size) {
-                tmp = shdata[sh_index(i)];
-                shdata[sh_index(i)] = func(shdata[sh_index(i)], shdata[sh_index(i - s)]);
-                shdata[sh_index(i - s)] = tmp;
+                tmp = sdata[sh_index(i)];
+                sdata[sh_index(i)] = func(sdata[sh_index(i)], sdata[sh_index(i - s)]);
+                sdata[sh_index(i - s)] = tmp;
             }
             __syncthreads();
         }
 
-        data[id] = shdata[sh_index(tid)];
-        data[id + blockDim.x] = shdata[sh_index(tid + blockDim.x)];
+        data[id] = sdata[sh_index(tid)];
+        data[id + blockDim.x] = sdata[sh_index(tid + blockDim.x)];
 
         id += offset;
         blockId += gridDim.x;
