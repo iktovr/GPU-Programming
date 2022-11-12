@@ -1,7 +1,7 @@
 #include <vector>
 #include <limits>
 
-#define CHECKER
+// #define CHECKER
 #ifdef CHECKER
 #include <cstdio>
 #else
@@ -10,10 +10,10 @@
 
 #include "../common/error_checkers.hpp"
 #include "utils.hpp"
-bucket_sort_device_functions(int);
+bucket_sort_device_functions(long long);
 #include "bucket_sort.hpp"
 
-template <class T = int>
+template <class T>
 void bucket_sort(std::vector<T>& data) {
     T *dev_data;
     cudaCheck(cudaMalloc(&dev_data, sizeof(T) * data.size()));
@@ -35,7 +35,7 @@ int main() {
     if (n == 0) {
         return 0;
     }
-	std::vector<float> data(n);
+	std::vector<long long> data(n);
 
 #ifdef CHECKER
     std::fread(data.data(), sizeof(float), n, stdin);

@@ -1,26 +1,38 @@
 #include <vector>
 #include <iostream>
+#include <limits>
 
 #include "../../common/error_checkers.hpp"
 #include "../utils.hpp"
 #include "../reduce.hpp"
 
-template <class T> 
-__device__ inline T add_func(T x, T y) {
-    return x + y;
+__device__ func_pointer<long long> dev_max_func = max_func<long long>;
+__device__ func_pointer<long long> dev_min_func = min_func<long long>;
+
+template <class T>
+T reduce_max(const std::vector<T>& data) {
+	T *dev_data;
+	cudaCheck(cudaMalloc(&dev_data, sizeof(T) * data.size()));
+	cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(T) * data.size(), cudaMemcpyHostToDevice));
+
+	func_pointer<T> h_max_func;
+	cudaCheck(cudaMemcpyFromSymbol(&h_max_func, dev_max_func, sizeof(func_pointer<T>)));
+
+	T res = reduce(dev_data, data.size(), h_max_func, std::numeric_limits<T>::lowest());
+	cudaCheck(cudaFree(dev_data));
+	return res;
 }
 
-__device__ func_pointer<int> dev_add_func = add_func<int>;
+template <class T>
+T reduce_min(const std::vector<T>& data) {
+	T *dev_data;
+	cudaCheck(cudaMalloc(&dev_data, sizeof(T) * data.size()));
+	cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(T) * data.size(), cudaMemcpyHostToDevice));
 
-int reduce(const std::vector<int>& data) {
-	int *dev_data;
-	cudaCheck(cudaMalloc(&dev_data, sizeof(int) * data.size()));
-	cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(int) * data.size(), cudaMemcpyHostToDevice));
+	func_pointer<T> h_min_func;
+	cudaCheck(cudaMemcpyFromSymbol(&h_min_func, dev_min_func, sizeof(func_pointer<T>)));
 
-	func_pointer<int> h_add_func;
-	cudaCheck(cudaMemcpyFromSymbol(&h_add_func, dev_add_func, sizeof(func_pointer<int>)));
-
-	int res = reduce(dev_data, data.size(), h_add_func, 0);
+	T res = reduce(dev_data, data.size(), h_min_func, std::numeric_limits<T>::max());
 	cudaCheck(cudaFree(dev_data));
 	return res;
 }
@@ -28,10 +40,10 @@ int reduce(const std::vector<int>& data) {
 int main() {
 	int n;
 	std::cin >> n;
-	std::vector<int> data(n);
+	std::vector<long long> data(n);
 	for (int i = 0; i < n; ++i) {
 		std::cin >> data[i];
 	}
 
-	std::cout << reduce(data) << '\n';
+	std::cout << reduce_min(data) << ' ' << reduce_max(data) << '\n';
 }

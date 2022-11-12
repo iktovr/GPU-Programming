@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Написан для python 3.5
 
-from random import randint
+from random import uniform
 from pathlib import Path
 import argparse
 import sys
@@ -23,7 +23,7 @@ def test_gen(start, stop, answer, tests_dir, counts):
         if answer == 'scan':
             scan_nums = [0]
         for _ in range(count):
-            nums.append(randint(start, stop))
+            nums.append(int(uniform(start, stop)))
             if answer == 'scan':
                 scan_nums.append(scan_nums[-1] + nums[-1])
         
@@ -47,8 +47,8 @@ def test_gen(start, stop, answer, tests_dir, counts):
 
 
 parser = argparse.ArgumentParser(description="Примечание: также генерирует ответы к тестам")
-parser.add_argument("--start", type=int, default=-1e3)
-parser.add_argument("--stop", type=int, default=1e3)
+parser.add_argument("--start", type=int, default=-1e9)
+parser.add_argument("--stop", type=int, default=1e9)
 parser.add_argument("--answer", "-a", type=str, choices=['none', 'sum', 'max', 'min', 'scan', 'sort'], default='none')
 parser.add_argument("tests_dir", type=Path)
 parser.add_argument("counts", type=int, nargs="*")
