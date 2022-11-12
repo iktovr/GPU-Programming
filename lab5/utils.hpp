@@ -1,8 +1,12 @@
 #pragma once
 
-template <class T>
+template <bool double_block = true, class T>
 inline T get_block_count(T size, T block_size, T log_block_size) {
-	return (size >> (log_block_size + 1)) + ((size & ((block_size << 1) - 1)) > 0);
+	if (double_block) {
+		return (size >> (log_block_size + 1)) + ((size & ((block_size << 1) - 1)) > 0);
+	} else {
+		return (size >> log_block_size) + ((size & (block_size - 1)) > 0);
+	}
 }
 
 template <class T>
@@ -30,7 +34,7 @@ T ceil_2_pow(T a) {
 #define sh_index(i) ((i) + ((i) >> 5))
 
 size_t BLOCK_SIZE = 1024;
-size_t BLOCK_COUNT = 1024;
+size_t BLOCK_COUNT = 128;
 
 template <class T>
 using func_pointer = T (*) (T, T);

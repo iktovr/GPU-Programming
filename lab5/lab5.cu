@@ -8,6 +8,11 @@
 #include <iostream>
 #endif
 
+// #define TIME
+#ifdef TIME
+#include "../common/cuda_timer.hpp"
+#endif
+
 #include "../common/error_checkers.hpp"
 #include "utils.hpp"
 bucket_sort_device_functions(float);
@@ -19,7 +24,17 @@ void bucket_sort(std::vector<T>& data) {
     cudaCheck(cudaMalloc(&dev_data, sizeof(T) * data.size()));
     cudaCheck(cudaMemcpy(dev_data, data.data(), sizeof(T) * data.size(), cudaMemcpyHostToDevice));
 
+#ifdef TIME
+    cudaStartTimer();
+#endif
+
     bucket_sort(dev_data, data.size(), std::numeric_limits<T>::lowest(), std::numeric_limits<T>::max());
+
+#ifdef TIME
+    float t;
+    cudaEndTimer(t);
+    std::cout << t;
+#endif
 
     cudaCheck(cudaMemcpy(data.data(), dev_data, sizeof(T) * data.size(), cudaMemcpyDeviceToHost));
     cudaCheck(cudaFree(dev_data));
@@ -47,6 +62,7 @@ int main() {
 
     bucket_sort(data);
 
+#ifndef TIME
 #ifdef CHECKER
     std::fwrite(data.data(), sizeof(float), n, stdout);
 #else
@@ -54,6 +70,7 @@ int main() {
 		std::cout << data[i] << ' ';
 	}
     std::cout << '\n';
+#endif
 #endif
     return 0;
 }
