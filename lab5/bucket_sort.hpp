@@ -23,7 +23,7 @@ using index_t = uint32_t;
 __device__ func_pointer<index_t> dev_bucket_sort_add_func = add_func<index_t>;
 
 template <class T>
-__global__ void split(T *data, uint32_t *splits, int size, int n_splits, T min, T max) {
+__global__ void split(T *data, index_t *splits, int size, int n_splits, T min, T max) {
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     int offset = blockDim.x * gridDim.x;
 

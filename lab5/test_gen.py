@@ -40,6 +40,8 @@ def test_gen(start, stop, answer, tests_dir, counts):
                     ans.write("%d\n" % max(nums))
                 elif answer == 'min':
                     ans.write("%d\n" % min(nums))
+                elif answer == 'minmax':
+                    ans.write("%d %d\n" % (min(nums), max(nums)))
                 elif answer == 'scan':
                     ans.write(' '.join([str(i) for i in scan_nums[:-1]]) + ' \n')
                 elif answer == 'sort':
@@ -49,7 +51,7 @@ def test_gen(start, stop, answer, tests_dir, counts):
 parser = argparse.ArgumentParser(description="Примечание: также генерирует ответы к тестам")
 parser.add_argument("--start", type=int, default=-1e9)
 parser.add_argument("--stop", type=int, default=1e9)
-parser.add_argument("--answer", "-a", type=str, choices=['none', 'sum', 'max', 'min', 'scan', 'sort'], default='none')
+parser.add_argument("--answer", "-a", type=str, choices=['none', 'minmax', 'sum', 'max', 'min', 'scan', 'sort'], default='none')
 parser.add_argument("tests_dir", type=Path)
 parser.add_argument("counts", type=int, nargs="*")
 

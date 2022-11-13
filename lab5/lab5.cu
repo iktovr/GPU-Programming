@@ -1,7 +1,7 @@
 #include <vector>
 #include <limits>
 
-#define CHECKER
+// #define CHECKER
 #ifdef CHECKER
 #include <cstdio>
 #else
