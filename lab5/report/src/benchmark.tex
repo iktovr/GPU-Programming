@@ -1,0 +1,123 @@
+\pagebreak
+\section{Результаты}
+
+\textbf{Анализ программы профилировщиком}
+
+Размер тестового файла: $10^8$, конфигурация ядер: 128$\times$1024.
+
+\begin{lstlisting}[frame=none, numbers=none, keepspaces=true, language=]
+Profiling result:
+Time(%)      Time   Calls       Avg       Min       Max  Name
+ 78.63%  6.02814s   99315  60.697us  59.362us  61.570us  void bitonic_sort_shared_memory<float>
+  9.05%  693.59ms       1  693.59ms  693.59ms  693.59ms  void group<float>
+  6.01%  460.67ms       1  460.67ms  460.67ms  460.67ms  void histogram<uin32_t, uin32_t>
+  3.39%  260.19ms       6  43.365ms  2.6950us  130.05ms  void reduce<float>
+  1.41%  108.41ms       3  36.136ms  22.140ms  64.096ms  [CUDA memcpy HtoD]
+  0.88%  67.743ms       7  9.6776ms  2.8480us  65.610ms  [CUDA memcpy DtoH]
+  0.44%  33.688ms       1  33.688ms  33.688ms  33.688ms  void split<float>
+  0.16%  12.610ms       2  6.3050ms  15.802us  12.594ms  void scan<uin32_t>
+  0.01%  906.58us       2  453.29us  2.4790us  904.10us  void per_block_func<uin32_t>
+  0.01%  516.76us       2  258.38us  2.3680us  514.39us  [CUDA memset]
+  0.00%  14.210us       5  2.8420us  2.6250us  3.1680us  [CUDA memcpy DtoD]
+  0.00%  14.191us       1  14.191us  14.191us  14.191us  void scan<uin32_t>
+\end{lstlisting}
+
+Больше всего ожидаемо выполняется битоническая сортировка, вызванная примерно $\frac{10^8}{1024} = 97656$ раз.
+
+\begin{lstlisting}[frame=none, numbers=none, keepspaces=true, language=]
+Invocations                           Event Name         Min         Max         Avg
+Device "GeForce GT 545 (0)"
+   Kernel: void scan<uin32_t>(uin32_t*, uin32_t (*) (uin32_t, uin32_t))
+     1                   l1_shared_bank_conflict           0           0           0
+     1                          divergent_branch           0           0           0
+   Kernel: void per_block_func<uin32_t>(uin32_t*, uin32_t*, int, uin32_t (*) (uin32_t, uin32_t))
+     2                   l1_shared_bank_conflict           0           0           0
+     2                          divergent_branch           0           0           0
+   Kernel: void histogram<uin32_t, uin32_t>(uin32_t*, int, uin32_t*)
+     1                   l1_shared_bank_conflict           0           0           0
+     1                          divergent_branch           0           0           0
+   Kernel: void group<float>(float*, float*, int, uin32_t*, uin32_t*)
+     1                   l1_shared_bank_conflict           0           0           0
+     1                          divergent_branch           0           0           0
+   Kernel: void reduce<float>(float*, int, float*, float (*) (float, float))
+     6                   l1_shared_bank_conflict           0           0           0
+     6                          divergent_branch           0           0           0
+   Kernel: void scan<uin32_t>(uin32_t*, int, uin32_t*, uin32_t (*) (uin32_t, uin32_t))
+     2                   l1_shared_bank_conflict           0           0           0
+     2                          divergent_branch           0           0           0
+   Kernel: void bitonic_sort_shared_memory<float>(float*, int, int, float)
+ 99315                   l1_shared_bank_conflict           0           0           0
+ 99315                          divergent_branch        1143        1499        1425
+   Kernel: void split<float>(float*, uin32_t*, int, int, float, float)
+     1                   l1_shared_bank_conflict           0           0           0
+     1                          divergent_branch           0           0           0
+\end{lstlisting}
+
+От конфликтов банков разделяемой памяти удалось избавиться во всех алгоритмах, где она используется. Дивергенция потоков наблюдается только в битонической сортировке, вероятно это связано с тем, что на каждой итерации активна только часть потоков.
+\pagebreak
+
+\textbf{Сравнение времени работы}
+\begin{center}
+\begin{tabular}{|l*{7}{|r}|}
+\hline
+\textbf{Размер теста} & 100 & 1000 & $10^4$ & $10^5$ & $10^6$ & $10^7$ & $10^8$ \\
+\hline
+\hline
+\textbf{Конфигурация} & \multicolumn{7}{c|}{\textbf{Время выполнения, мс}} \\
+\hline
+CPU       & 0.0556 & 0.6301 & 5.9759 & 58.623 & 599.690 & 5913.16 & 65898.06 \\
+\hline
+128$\times$128   & 0.3141 & 0.9337 & 3.1465 & 23.631 & 220.344 & 2279.35 & 22634.16 \\
+\hline
+128$\times$512   & 0.4731 & 0.8130 & 1.6202 & 10.287 &  87.063 &  949.79 &  9346.23 \\
+\hline
+128$\times$1024  & 0.5211 & 0.8248 & 1.5834 &  9.617 &  79.065 &  869.78 &  8519.17 \\
+\hline
+256$\times$1024  & 0.5704 & 0.8861 & 1.6135 &  9.657 &  79.278 &  870.03 &  8534.99 \\
+\hline
+512$\times$1024  & 0.6647 & 0.9807 & 1.7309 &  9.779 &  79.598 &  871.51 &  8523.13 \\
+\hline
+1024$\times$1024 & 0.8734 & 1.1977 & 1.9291 &  9.970 &  79.859 &  872.14 &  8519.02 \\
+\hline
+\hline
+\multicolumn{8}{|c|}{\textbf{Битоническая сортировка}} \\
+\hline
+128$\times$1024  & 0.0385 & 0.0841 & 0.8510 &  8.019 &  75.615 & 1538.61 & 15307.46 \\
+\hline
+\end{tabular}
+\end{center}
+
+\begin{tikzpicture}
+\begin{loglogaxis}[
+    ylabel = Время выполнения (мс),
+    xlabel = Размер теста,
+    width = .98\textwidth,
+    height = .7\textwidth,
+    legend pos = south east,
+    colormap name = colormap/jet,
+    cycle list = {[of colormap]}
+]
+\legend{
+    CPU,
+    $128\times128$,
+    $128\times512$,
+    $128\times1024$,
+    $256\times1024$,
+    $512\times1024$,
+    $1024\times1024$,
+    bitonic,
+};
+\pgfplotstableread{data/time.dat}\timetable
+\addplot+ [thick, mark=*] table [x=size, y=cpu] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=128x128] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=128x512] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=128x1024] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=256x1024] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=512x1024] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=1024x1024] {\timetable};
+\addplot+ [thick, mark=*] table [x=size, y=bitonic] {\timetable};
+\end{loglogaxis}
+\end{tikzpicture}
+
+Из замеров видно, что уменьшение числа потоков, от которого зависит количество элементов, обрабатываемых в разделяемой памяти, значительно увеличивает время работы. Слишком большое число потоков --- тоже, но не так существенно, оптимальная конфигурация: 128$\times$1024. Сортировка на CPU быстрее на маленьких тестах, но после 1000 элементов начинает сильно проигрывать. Так как битоническая сортировка была реализована полностью, я решил сравнить еще и с ней. На маленьких тестах она работает быстрее всего, но, начиная с $10^7$ --- в два раза медленнее карманной.
+\pagebreak
