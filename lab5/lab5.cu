@@ -40,11 +40,20 @@ void bucket_sort(std::vector<T>& data) {
     cudaCheck(cudaFree(dev_data));
 }
 
-int main() {
+int main(int argc, char* argv[]) {
+#ifdef TIME
+	check(argc == 3 || argc == 1, false, "Expected 2 or 0 arguments");
+    if (argc == 3) {
+        char *end;
+        BLOCK_COUNT = std::strtol(argv[1], &end, 10);
+        BLOCK_SIZE = std::strtol(argv[2], &end, 10);
+    }
+#endif
 	uint32_t n;
 #ifdef CHECKER
     fread(&n, sizeof(n), 1, stdin);
 #else
+	std::ios::sync_with_stdio(false);
 	std::cin >> n;
 #endif
     if (n == 0) {

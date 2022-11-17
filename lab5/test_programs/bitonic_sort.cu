@@ -6,7 +6,7 @@
 #include "../utils.hpp"
 #include "../bitonic_sort.hpp"
 
-// #define TIME
+#define TIME
 #ifdef TIME
 #include "../../common/cuda_timer.hpp"
 #endif
@@ -36,7 +36,7 @@ void bitonic_sort(std::vector<T>& data) {
 int main() {
 	int n;
 	std::cin >> n;
-	std::vector<long long> data(n);
+	std::vector<float> data(n);
 	for (int i = 0; i < n; ++i) {
 		std::cin >> data[i];
 	}

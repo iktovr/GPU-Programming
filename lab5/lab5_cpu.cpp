@@ -5,6 +5,11 @@
 #include <limits>
 #include <cstring>
 
+#ifdef TIME
+#include <chrono>
+using namespace std::chrono;
+#endif
+
 #define __device__
 
 #include "utils.hpp"
@@ -53,46 +58,31 @@ void bucket_sort(T* data, size_t size) {
 			max = data[i];
 		}
 	}
-	// std::cout << min << ' ' << max << '\n';
 
 	if (std::abs(min - max) < EPS) {
 		return;
 	}
 
-	// std::cout << "splits\n";
 	size_t n_splits = (size - 1) / SPLIT_SIZE + 1;
-	// std::cout << n_splits << '\n';
 	std::vector<index_t> splits(size);
 	for (size_t i = 0; i < splits.size(); ++i) {
 		splits[i] = SPLIT_COEF * (data[i] - min) / (max - min) * n_splits;
-		// std::cout << splits[i] << ' ';
 	}
-	// std::cout << '\n';
 
 	std::vector<index_t> hist(n_splits);
 	for (index_t i: splits) {
 		++hist[i];
 	}
 
-	// std::cout << "hist\n";
-	// for (auto a: hist) {
-	// 	std::cout << a << ' ';
-	// }
-	// std::cout << '\n';
 
 	for (size_t i = 1; i < hist.size(); ++i) {
 		hist[i] += hist[i-1];
 	}
-	for (int i = hist.size()-2; i > 0; --i) {
+	for (int i = hist.size()-2; i >= 0; --i) {
 		hist[i+1] = hist[i];
 	}
 	hist[0] = 0;
 
-	// std::cout << "hist scan\n";
-	// for (auto a: hist) {
-	// 	std::cout << a << ' ';
-	// }
-	// std::cout << '\n';
 
 	std::vector<index_t> groups(hist);
 	groups.push_back(size);
@@ -102,11 +92,6 @@ void bucket_sort(T* data, size_t size) {
 		group_data[hist[splits[i]]++] = data[i];
 	}
 
-	// std::cout << "group data\n";
-	// for (auto a: group_data) {
-	// 	std::cout << a << ' ';
-	// }
-	// std::cout << '\n';
 
 	size_t len, start;
     for (size_t i = 0; i < n_splits; ++i) {
@@ -118,10 +103,8 @@ void bucket_sort(T* data, size_t size) {
         }
 
         if (start == i) {
-        	// std::cout << groups[start] << ' ' << groups[i + 1] - groups[i] << " 1\n";
             bucket_sort(group_data.data() + groups[start], groups[i + 1] - groups[i]);
         } else {
-        	// std::cout << groups[start] << ' ' << len << " 2\n";
             --i;
             bitonic_sort(group_data.data() + groups[start], len);
         }
@@ -138,14 +121,25 @@ void bucket_sort(std::vector<T>& data) {
 int main() {
 	int n;
 	std::cin >> n;
-	std::vector<int> data(n);
+	std::vector<float> data(n);
 	for (int i = 0; i < n; ++i) {
 		std::cin >> data[i];
 	}
 
+#ifdef TIME
+	steady_clock::time_point start = steady_clock::now();
+#endif
+
 	bucket_sort(data);
+
+#ifdef TIME
+	steady_clock::time_point end = steady_clock::now();
+	std::cout << duration_cast<nanoseconds>(end - start).count() / 1000000.0;
+#else
     for (size_t i = 0; i < data.size(); ++i) {
 		std::cout << data[i] << ' ';
 	}
     std::cout << '\n';
+#endif
+	return 0;
 }
