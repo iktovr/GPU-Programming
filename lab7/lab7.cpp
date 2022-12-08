@@ -70,9 +70,11 @@ int main(int argc, char *argv[]) {
 	}
 	row_buffer.resize(block.x);
 
-	double eps_k = eps + 1, eps_temp;
+	double eps_k, eps_temp;
 	do {
 		MPI_Barrier(MPI_COMM_WORLD);
+		
+		eps_k = 0;
 
 		if (id.x + 1 < grid.x) { // right
 			for (int i = 0; i < block.y; ++i) {
@@ -214,7 +216,7 @@ int main(int argc, char *argv[]) {
 						 (data[_i(i, j, k-1)] + data[_i(i, j, k+1)]) / (h.z * h.z)) / 2 /
 						(1 / (h.x * h.x) + 1 / (h.y * h.y) + 1 / (h.z * h.z));
 
-					eps_k = std::max(eps, std::abs(next_data[_i(i, j, k)] - data[_i(i, j, k)]));
+					eps_k = std::max(eps_k, std::abs(next_data[_i(i, j, k)] - data[_i(i, j, k)]));
 				}
 			}
 		}
