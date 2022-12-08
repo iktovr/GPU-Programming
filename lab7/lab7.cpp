@@ -235,6 +235,7 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	} else {
+		out_file << std::setprecision(6) << std::scientific;
 		for (int kb = 0; kb < grid.z; ++kb) {
 			for (int k = 0; k < block.z; ++k) {
 				for (int jb = 0; jb < grid.y; ++jb) {

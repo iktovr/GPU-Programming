@@ -9,13 +9,15 @@ import shutil
 
 header_re = re.compile("^#include \"(.*?([^/]*))\"$", re.M)
 makefile = """\
-CC = /usr/local/cuda/bin/nvcc
-CFLAGS = --std=c++11 -Werror cross-execution-space-call -lm
+CC = {cc}
+CFLAGS = --std=c++11 {cflags}
 SOURSES = {main}
 BIN = {bin}
 all:
 \t$(CC) $(CFLAGS) -o $(BIN) $(SOURSES)
 """
+cc = {'cuda': '/usr/local/cuda/bin/nvcc', 'mpi': '/usr/local/bin/mpic++'}
+cflags = {'cuda': '-Werror cross-execution-space-call -lm', 'mpi': ''}
 
 
 def replace_header(match):
@@ -48,9 +50,10 @@ def search_headers(file, root, block):
               default='./', help="Директория для архива и подписи")
 @click.option("--sign/--no-sign", default=True, help="Подписывать или нет получившийся архив")
 @click.option("--block", "-b", multiple=True, type=str, help="Имена файлов, которые не надо добавлять в архив")
+@click.option("--compiler", "-c", default='cuda', type=click.Choice(['cuda', 'mpi']), help="Компилятор")
 @click.argument("source_files", nargs=-1, type=click.Path(exists=True, dir_okay=False, file_okay=True, path_type=Path),
                 required=True)
-def pack(source_files, name, root, output, sign, block):
+def pack(source_files, name, root, output, sign, compiler, block):
     """\
     SOURCE_FILES - Исходные файлы проекта
 
@@ -104,7 +107,7 @@ def pack(source_files, name, root, output, sign, block):
             shutil.copy(file, tar_root / file)
 
         with open(tar_root / 'makefile', 'wt') as file:
-            file.write(makefile.format(main=' '.join(sources), bin=name))
+            file.write(makefile.format(main=' '.join(sources), bin=name, cc=cc[compiler], cflags=cflags[compiler]))
 
         os.chdir(output)
         with tarfile.open(name + '.tar', 'w') as archive:
