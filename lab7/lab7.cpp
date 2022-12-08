@@ -1,4 +1,6 @@
 #include <iostream>
+#include <fstream>
+#include <iomanip>
 #include <string>
 #include <cassert>
 #include <vector>
@@ -14,10 +16,11 @@
 int main(int argc, char *argv[]) {
 	std::ios::sync_with_stdio(false);
 	int numproc, proc_id;
-	std::string out_filename;
 	vec3i grid, block, id;
 	vec3 l, start, end, h;
 	double eps, u0;
+	std::string out_filename;
+	std::ofstream out_file;
 
 	std::vector<double> data, next_data;
 	std::vector<std::vector<double>> buffer(12);
@@ -36,6 +39,8 @@ int main(int argc, char *argv[]) {
 		         >> u0;
 
 		MPI_Assert(grid.x * grid.y * grid.z == numproc);
+
+		out_file.open(out_filename);
 	};
 
 	MPI_Bcast(&grid, 3, MPI_INT, 0, MPI_COMM_WORLD);
@@ -69,7 +74,7 @@ int main(int argc, char *argv[]) {
 	do {
 		MPI_Barrier(MPI_COMM_WORLD);
 
-		if (id.x + 1 < grid.x) {
+		if (id.x + 1 < grid.x) { // right
 			for (int i = 0; i < block.y; ++i) {
 				for (int j = 0; j < block.z; ++j) {
 					buffer[0][i * block.z + j] = data[_i(block.x-1, i, j)];
@@ -77,7 +82,7 @@ int main(int argc, char *argv[]) {
 			}
 			MPI_Isend(buffer[0].data(), buffer[0].size(), MPI_DOUBLE, _ib(id.x+1, id.y, id.z), proc_id, MPI_COMM_WORLD, &request);
 		}
-		if (id.x > 0) {
+		if (id.x > 0) { // left
 			for (int i = 0; i < block.y; ++i) {
 				for (int j = 0; j < block.z; ++j) {
 					buffer[2][i * block.z + j] = data[_i(0, i, j)];
@@ -86,7 +91,7 @@ int main(int argc, char *argv[]) {
 			MPI_Isend(buffer[2].data(), buffer[2].size(), MPI_DOUBLE, _ib(id.x-1, id.y, id.z), proc_id, MPI_COMM_WORLD, &request);
 		}
 
-		if (id.y + 1 < grid.y) {
+		if (id.y + 1 < grid.y) { // back
 			for (int i = 0; i < block.x; ++i) {
 				for (int j = 0; j < block.z; ++j) {
 					buffer[4][i * block.z + j] = data[_i(i, block.y-1, j)];
@@ -94,7 +99,7 @@ int main(int argc, char *argv[]) {
 			}
 			MPI_Isend(buffer[4].data(), buffer[4].size(), MPI_DOUBLE, _ib(id.x, id.y+1, id.z), proc_id, MPI_COMM_WORLD, &request);
 		}
-		if (id.y > 0) {
+		if (id.y > 0) { // front
 			for (int i = 0; i < block.x; ++i) {
 				for (int j = 0; j < block.z; ++j) {
 					buffer[6][i * block.z + j] = data[_i(i, 0, j)];
@@ -103,7 +108,7 @@ int main(int argc, char *argv[]) {
 			MPI_Isend(buffer[6].data(), buffer[6].size(), MPI_DOUBLE, _ib(id.x, id.y-1, id.z), proc_id, MPI_COMM_WORLD, &request);
 		}
 
-		if (id.z + 1 < grid.z) {
+		if (id.z + 1 < grid.z) { // top
 			for (int i = 0; i < block.x; ++i) {
 				for (int j = 0; j < block.y; ++j) {
 					buffer[8][i * block.y + j] = data[_i(i, j, block.z-1)];
@@ -111,7 +116,7 @@ int main(int argc, char *argv[]) {
 			}
 			MPI_Isend(buffer[8].data(), buffer[8].size(), MPI_DOUBLE, _ib(id.x, id.y, id.z+1), proc_id, MPI_COMM_WORLD, &request);
 		}
-		if (id.z > 0) {
+		if (id.z > 0) { // bottom
 			for (int i = 0; i < block.x; ++i) {
 				for (int j = 0; j < block.y; ++j) {
 					buffer[10][i * block.y + j] = data[_i(i, j, 0)];
@@ -123,94 +128,79 @@ int main(int argc, char *argv[]) {
 		if (id.x + 1 < grid.x) {
 			MPI_Irecv(buffer[1].data(), buffer[1].size(), MPI_DOUBLE, _ib(id.x+1, id.y, id.z), _ib(id.x+1, id.y, id.z), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.y; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(block.x, i, j)] = buffer[1][i * block.z + j];
-				}
-			}
-		} else {
-			for (int i = 0; i < block.y; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(block.x, i, j)] = end.x;
-				}
-			}			
 		}
 		if (id.x > 0) {
 			MPI_Irecv(buffer[3].data(), buffer[3].size(), MPI_DOUBLE, _ib(id.x-1, id.y, id.z), _ib(id.x-1, id.y, id.z), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.y; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(-1, i, j)] = buffer[3][i * block.z + j];
+		}
+		for (int i = 0; i < block.y; ++i) {
+			for (int j = 0; j < block.z; ++j) {
+				// right
+				if (id.x + 1 < grid.x) {
+					data[_i(block.x, i, j)] = buffer[1][i * block.z + j];
+				} else {
+					data[_i(block.x, i, j)] = end.x;
 				}
-			}
-		} else {
-			for (int i = 0; i < block.y; ++i) {
-				for (int j = 0; j < block.z; ++j) {
+
+				// left
+				if (id.x > 0) {
+					data[_i(-1, i, j)] = buffer[3][i * block.z + j];
+				} else {
 					data[_i(-1, i, j)] = start.x;
 				}
-			}			
+			}
 		}
 
 		if (id.y + 1 < grid.y) {
 			MPI_Irecv(buffer[5].data(), buffer[5].size(), MPI_DOUBLE, _ib(id.x, id.y+1, id.z), _ib(id.x, id.y+1, id.z), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(i, block.y, j)] = buffer[5][i * block.z + j];
-				}
-			}
-		} else {
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(i, block.y, j)] = end.y;
-				}
-			}			
 		}
 		if (id.y > 0) {
 			MPI_Irecv(buffer[7].data(), buffer[7].size(), MPI_DOUBLE, _ib(id.x, id.y-1, id.z), _ib(id.x, id.y-1, id.z), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.z; ++j) {
-					data[_i(i, -1, j)] = buffer[7][i * block.z + j];
+		}
+		for (int i = 0; i < block.x; ++i) {
+			for (int j = 0; j < block.z; ++j) {
+				// back
+				if (id.y + 1 < grid.y) {
+					data[_i(i, block.y, j)] = buffer[5][i * block.z + j];
+				} else {
+					data[_i(i, block.y, j)] = end.y;
 				}
-			}
-		} else {
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.z; ++j) {
+
+				// front
+				if (id.y > 0) {
+					data[_i(i, -1, j)] = buffer[7][i * block.z + j];
+				} else {
 					data[_i(i, -1, j)] = start.y;
 				}
-			}			
+			}
 		}
 
 		if (id.z + 1 < grid.z) {
 			MPI_Irecv(buffer[9].data(), buffer[9].size(), MPI_DOUBLE, _ib(id.x, id.y, id.z+1), _ib(id.x, id.y, id.z+1), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.y; ++j) {
-					data[_i(i, j, block.z)] = buffer[9][i * block.y + j];
-				}
-			}
-		} else {
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.y; ++j) {
-					data[_i(i, j, block.z)] = end.z;
-				}
-			}			
 		}
 		if (id.z > 0) {
 			MPI_Irecv(buffer[11].data(), buffer[11].size(), MPI_DOUBLE, _ib(id.x, id.y, id.z-1), _ib(id.x, id.y, id.z-1), MPI_COMM_WORLD, &request);
 			MPI_Wait(&request, &status);
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.y; ++j) {
-					 data[_i(i, j, -1)] = buffer[11][i * block.y + j];
+		}
+		for (int i = 0; i < block.x; ++i) {
+			for (int j = 0; j < block.y; ++j) {
+				// top
+				if (id.z + 1 < grid.z) {
+					data[_i(i, j, block.z)] = buffer[9][i * block.y + j];
+				} else {
+					data[_i(i, j, block.z)] = end.z;
 				}
-			}
-		} else {
-			for (int i = 0; i < block.x; ++i) {
-				for (int j = 0; j < block.y; ++j) {
+
+				// bottom
+				if (id.z > 0) {
+					 data[_i(i, j, -1)] = buffer[11][i * block.y + j];
+				} else {
 					 data[_i(i, j, -1)] = start.z;
 				}
-			}			
+			}
 		}
 
 		MPI_Barrier(MPI_COMM_WORLD);
@@ -259,13 +249,13 @@ int main(int argc, char *argv[]) {
 							}
 
 							for (int i = 0; i < block.x; ++i) {
-								std::cout << row_buffer[i] << ' ';
+								out_file << row_buffer[i] << ' ';
 							}
 						}
-						std::cout << '\n';
+						out_file << '\n';
 					}
 				}
-				std::cout << '\n';
+				out_file << '\n';
 			}
 		}
 	}
