@@ -72,7 +72,6 @@ int main(int argc, char *argv[]) {
 	for (int i = 8; i < 12; ++i) {
 		buffer[i].resize(block.x * block.y);
 	}
-	row_buffer.resize(block.x);
 
 #ifdef TIME
 	if (proc_id == 0) {
@@ -244,6 +243,9 @@ int main(int argc, char *argv[]) {
 	}
 #else
 
+#ifndef PLOT
+	row_buffer.resize(block.x);
+
 	if (proc_id != 0) {
 		for (int k = 0; k < block.z; ++k) {
 			for (int j = 0; j < block.y; ++j) {
@@ -279,6 +281,48 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
+
+// Вторая версия вывода, для отрисовки тепловых карт через pgfplots
+#else
+	row_buffer.resize(block.z);
+
+	if (proc_id != 0) {
+		for (int i = 0; i < block.x; ++i) {
+			for (int j = 0; j < block.y; ++j) {
+				for (int k = 0; k < block.z; ++k) {
+					row_buffer[k] = data[_i(i, j, k)];
+				}
+				MPI_Send(row_buffer.data(), block.z, MPI_DOUBLE, 0, proc_id, MPI_COMM_WORLD);
+			}
+		}
+	} else {
+		out_file << std::setprecision(6) << std::scientific;
+		for (int ib = 0; ib < grid.x; ++ib) {
+			for (int i = 0; i < block.x; ++i) {
+				for (int jb = 0; jb < grid.y; ++jb) {
+					for (int j = 0; j < block.y; ++j) {
+						out_file << ib*block.x+i << ' ' << jb*block.y+j << ' ';
+						for (int kb = 0; kb < grid.z; ++kb) {
+							if (_ib(ib, jb, kb) == 0) {
+								for (int k = 0; k < block.z; ++k) {
+									row_buffer[k] = data[_i(i, j, k)];
+								}
+							} else {
+								MPI_Recv(row_buffer.data(), block.z, MPI_DOUBLE, _ib(ib, jb, kb), _ib(ib, jb, kb), MPI_COMM_WORLD, &status);
+							}
+
+							for (int k = 0; k < block.z; ++k) {
+								out_file << row_buffer[k] << ' ';
+							}
+						}
+						out_file << '\n';
+					}
+				}
+			}
+		}
+	}
+#endif
+#endif
 
 	MPI_Finalize();
 	return 0;
