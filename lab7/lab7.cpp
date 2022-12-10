@@ -22,6 +22,10 @@ int main(int argc, char *argv[]) {
 	std::string out_filename;
 	std::ofstream out_file;
 
+#ifdef TIME
+	double time_start, time_end;
+#endif
+
 	std::vector<double> data, next_data;
 	std::vector<std::vector<double>> buffer(12);
 	std::vector<double> row_buffer;
@@ -69,6 +73,12 @@ int main(int argc, char *argv[]) {
 		buffer[i].resize(block.x * block.y);
 	}
 	row_buffer.resize(block.x);
+
+#ifdef TIME
+	if (proc_id == 0) {
+		time_start = MPI_Wtime();
+	}
+#endif
 
 	double eps_k, eps_temp;
 	do {
@@ -226,6 +236,13 @@ int main(int argc, char *argv[]) {
 		MPI_Allreduce(&eps_k, &eps_temp, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 		eps_k = eps_temp;
 	} while (eps_k > eps);
+
+#ifdef TIME
+	if (proc_id == 0) {
+		time_end = MPI_Wtime();
+		std::cout << (time_end - time_start) * 1000 << std::endl;
+	}
+#else
 
 	if (proc_id != 0) {
 		for (int k = 0; k < block.z; ++k) {

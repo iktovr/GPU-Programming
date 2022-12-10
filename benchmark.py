@@ -35,7 +35,10 @@ def print_table(table, headers, hsep, vsep, startvsep, endvsep):
               endvsep, sep='')
 
 
-def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
+def benchmark(gpu, cpu, utility, tests, kernels, repeat, pattern, style, verbose):
+    if not utility and cpu is not None:
+        cpu = Path(cpu)
+
     if pattern is not None:
         file_re = re.compile(pattern)
 
@@ -61,16 +64,16 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                 with open(str(test_file), 'rt') as test:
                     for k in range(repeat):
                         try:
-                            result = subprocess.run(['./' + str(cpu)], stdin=test, stdout=subprocess.PIPE,  stderr=subprocess.PIPE)
+                            result = subprocess.run(cpu.split() if utility else ['./' + str(cpu)], stdin=test, stdout=subprocess.PIPE,  stderr=subprocess.PIPE)
                         except OSError as e:
-                            print("%s execution failed: %s" % (cpu.name, e), file=sys.stderr)
+                            print("%s execution failed: %s" % (cpu if utility else cpu.name, e), file=sys.stderr)
                             sys.exit()
                         if result.returncode != 0:
-                            print("%s with test %s return %d" % (cpu.name, test_file.name, result.returncode), 
-                                file=sys.stderr)
+                            print("%s with test %s return %d" % (cpu if utility else cpu.name, test_file.name, result.returncode), 
+                                  file=sys.stderr)
                             sys.exit()
                         if result.stderr.startswith(b"ERROR:"):
-                            print("%s %s" % (cpu.name, result.stderr.decode('utf-8')), file=sys.stderr)
+                            print("%s %s" % (cpu if utility else cpu.name, result.stderr.decode('utf-8')), file=sys.stderr)
                             sys.exit()
                         time[k] = float(result.stdout)
                         test.seek(0)
@@ -97,7 +100,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                                 sys.exit()
                             if result.returncode != 0:
                                 print("%s with test %s return %d" % 
-                                    (gpu.name + ' ' + ' '.join(kernel), test_file.name, result.returncode), file=sys.stderr)
+                                      (gpu.name + ' ' + ' '.join(kernel), test_file.name, result.returncode), file=sys.stderr)
                                 sys.exit()
                             if result.stderr.startswith(b"ERROR:"):
                                 print("%s %s" % (gpu.name + ' ' + ' '.join(kernel), result.stderr.decode('utf-8')), file=sys.stderr)
@@ -110,7 +113,7 @@ def benchmark(gpu, cpu, tests, kernels, repeat, pattern, style, verbose):
                     if verbose > 0:
                         print("GPU %s: Done" % test_file.stem)
     
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         print()
     finally:
         print_table(table, headers, *STYLES[style])
@@ -123,7 +126,8 @@ def grid_dim(value):
 parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("--tests", "-t", nargs="*", type=Path, required=True, help="Тестовые файлы (директории)")
 parser.add_argument("--gpu", type=Path, default=None, help="Исполняемый файл для CUDA")
-parser.add_argument("--cpu", type=Path, default=None, help="Исполняемый файл для CPU")
+parser.add_argument("--cpu", type=str, default=None, help="Исполняемый файл для CPU")
+parser.add_argument("--utility", "-u", action='store_true', help='Используется не исполняемый файл (для mpi)')
 parser.add_argument("--repeat", "-r", type=int, default=1, help="Число запусков каждой конфигурации")
 parser.add_argument("--pattern", "-p", type=str, default=None, help="Регулярное выражения имен тестов")
 parser.add_argument("--style", "-s", type=str, choices=['md', 'tex'], default='md', help="Стиль таблицы")
