@@ -13,6 +13,7 @@
 #include <iostream>
 #include <chrono>
 using namespace std::chrono;
+#include "../common/error_checkers.hpp"
 #endif
 
 #include "../common/vec3.hpp"
@@ -65,7 +66,7 @@ GLuint textures[3];
 const double object_charge = 1;
 const double object_radius = 0.8;
 const double bullet_radius = 0.6;
-const int object_count = 150;
+int object_count = 150;
 
 std::vector<point_charge> objects;
 point_charge camera{{-box, 0, box}, {0, 0, 0}, 5};
@@ -73,11 +74,6 @@ double yaw = 0, pitch = 0, dyaw = 0, dpitch = 0;
 bool bullet_active = false;
 point_charge bullet{{0, 0, 10000}, {0, 0, 0}, 10};
 std::vector<uchar> field_data(field_size * field_size * 4, 0);
-
-#ifdef TIME
-high_resolution_clock::time_point prev_time_since_start, time_since_start;
-bool first = true;
-#endif
 
 // Загрузка текстуры из изображения
 void load_texture(const char file[], GLuint texture) {
@@ -283,18 +279,16 @@ void process_input() {
 	}
 }
 
+#ifdef TIME
+	int frame_count = 0;
+	high_resolution_clock::time_point start_time, end_time;
+#endif
+
 void update() {
 	process_input();
 
 #ifdef TIME
-	if (first) {
-		first = false;
-		prev_time_since_start = high_resolution_clock::now();
-	} else {
-		time_since_start = high_resolution_clock::now();
-		std::cout << duration_cast<milliseconds>(time_since_start - prev_time_since_start).count() << '\n';
-		prev_time_since_start = time_since_start;
-	}
+	start_time = high_resolution_clock::now();
 #endif
 
 	// Ограничение максимальной скорости
@@ -326,7 +320,18 @@ void update() {
 
 	update_objects(dt);
 
-	// field(field_data);
+	field(field_data);
+
+#ifdef TIME
+	end_time = high_resolution_clock::now();
+	std::cout << duration_cast<nanoseconds>(end_time - start_time).count() / 1000000.0 << '\n';
+	++frame_count;
+	if (frame_count == 1000) {
+		glDeleteTextures(3, textures);
+		gluDeleteQuadric(quadratic);
+		exit(0);
+	}
+#endif
 
 	glutPostRedisplay();
 }
@@ -334,7 +339,7 @@ void update() {
 // Обработка ввода
 void key_pressed(uchar key, int, int) {
 	if (key == 27) {                 // "escape" Выход
-		glDeleteTextures(2, textures);
+		glDeleteTextures(3, textures);
 		gluDeleteQuadric(quadratic);
 		exit(0);
 	} else if (key == 'x') {         // "x" полная остановка
@@ -388,6 +393,12 @@ void reshape(int new_width, int new_height) {
 
 int main(int argc, char **argv) {
 #ifdef TIME
+	check(argc < 2, true, "Expected at least 1 argument");
+	char *end;
+	object_count = strtol(argv[argc-1], &end, 10);
+	check(end == argv[argc-1] || object_count < 0, true, "Invlalid value for objects count");
+	--argc;
+
 	std::ios::sync_with_stdio(false);
 #endif
 

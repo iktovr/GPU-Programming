@@ -28,6 +28,7 @@ x - полная остановка
 #include <iostream>
 #include <chrono>
 using namespace std::chrono;
+#include "../common/cuda_timer.hpp"
 #endif
 
 #include "../common/vec3.hpp"
@@ -97,7 +98,9 @@ GLuint vbo;
 const double object_charge = 1;
 const double object_radius = 0.8;
 const double bullet_radius = 0.6;
-const int object_count = 150;
+int object_count = 150;
+int block_size = 256;
+int block_count = (object_count - 1) / block_size + 1;
 
 std::vector<point_charge> objects;
 point_charge camera{{-box, 0, box}, {0, 0, 0}, 5};
@@ -106,11 +109,6 @@ bool bullet_active = false;
 point_charge bullet{{0, 0, 10000}, {0, 0, 0}, 10};
 
 point_charge *dev_objects;
-
-#ifdef TIME
-high_resolution_clock::time_point prev_time_since_start, time_since_start;
-bool first = true;
-#endif
 
 // Загрузка текстуры из изображения
 void load_texture(const char file[], GLuint texture) {
@@ -129,7 +127,7 @@ void load_texture(const char file[], GLuint texture) {
 }
 
 // Генерация текстуры пола
-__global__ void field(uchar4 *field_data, point_charge *objects, int objects_count, point_charge bullet, bool bullet_active) {
+__global__ void field(uchar4 *field_data, point_charge *objects, int object_count, point_charge bullet, bool bullet_active) {
 	int idx = blockIdx.x * blockDim.x + threadIdx.x;
 	int idy = blockIdx.y * blockDim.y + threadIdx.y;
 	int offsetx = blockDim.x * gridDim.x;
@@ -321,18 +319,15 @@ void process_input() {
 	}
 }
 
+#ifdef TIME
+	int frame_count = 0;
+#endif
+
 void update() {
 	process_input();
 
 #ifdef TIME
-	if (first) {
-		first = false;
-		prev_time_since_start = high_resolution_clock::now();
-	} else {
-		time_since_start = high_resolution_clock::now();
-		std::cout << duration_cast<milliseconds>(time_since_start - prev_time_since_start).count() << '\n';
-		prev_time_since_start = time_since_start;
-	}
+	cudaStartTimer();
 #endif
 
 	// Ограничение максимальной скорости
@@ -364,7 +359,7 @@ void update() {
 
 	cudaCheck(cudaMemcpy(dev_objects, objects.data(), sizeof(point_charge) * object_count, cudaMemcpyHostToDevice));
 
-	update_objects<<<1, object_count>>>(dev_objects, object_count, camera, bullet, bullet_active);
+	update_objects<<<block_count, block_size>>>(dev_objects, object_count, camera, bullet, bullet_active);
 
 	cudaCheck(cudaMemcpy(objects.data(), dev_objects, sizeof(point_charge) * object_count, cudaMemcpyDeviceToHost));
 
@@ -379,6 +374,19 @@ void update() {
 	field<<<dim3(32, 32), dim3(32, 8)>>>(dev_field_data, dev_objects, object_count, bullet, bullet_active);		
 	cudaGraphicsUnmapResources(1, &field_res, 0);
 
+#ifdef TIME
+	float t;
+	cudaEndTimer(t);
+	std::cout << t << '\n';
+	++frame_count;
+	if (frame_count == 1000) {
+		cudaGraphicsUnregisterResource(field_res);
+		glDeleteTextures(3, textures);
+		gluDeleteQuadric(quadratic);
+		exit(0);
+	}
+#endif
+
 	glutPostRedisplay();
 }
 
@@ -386,7 +394,7 @@ void update() {
 void key_pressed(uchar key, int, int) {
 	if (key == 27) {                 // "escape" Выход
 		cudaGraphicsUnregisterResource(field_res);
-		glDeleteTextures(2, textures);
+		glDeleteTextures(3, textures);
 		gluDeleteQuadric(quadratic);
 		exit(0);
 	} else if (key == 'x') {         // "x" полная остановка
@@ -440,6 +448,13 @@ void reshape(int new_width, int new_height) {
 
 int main(int argc, char **argv) {
 #ifdef TIME
+	check(argc < 2, true, "Expected at least 1 argument");
+	char *end;
+	object_count = strtol(argv[argc-1], &end, 10);
+	check(end == argv[argc-1] || object_count < 0, true, "Invlalid value for objects count");
+	--argc;
+	block_count = (object_count - 1) / block_size + 1;
+
 	std::ios::sync_with_stdio(false);
 #endif
 
