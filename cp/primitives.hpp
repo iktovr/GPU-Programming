@@ -7,6 +7,7 @@
 #include <iostream>
 
 #include "../common/vec3.hpp"
+#include "../common/vec2.hpp"
 
 // const double PI = 2 * std::acos(0);
 #define PI 3.141592653589793
@@ -61,8 +62,14 @@ struct Vertex {
 
 struct Triangle {
 	int a, b, c, material;
+	int texture = -1;
+	vec2 uv_a = {0, 0}, uv_b = {0, 0}, uv_c = {0, 0};
 
-	// TODO: переписать самому
+	Triangle() = default;
+
+	Triangle(int a, int b, int c, int material, int texture = -1, vec2 uv_a = {0, 0}, vec2 uv_b = {0, 0}, vec2 uv_c = {0, 0}) :
+		a(a), b(b), c(c), material(material), texture(texture), uv_a(uv_a), uv_b(uv_b), uv_c(uv_c) {}
+
 	__host__ __device__
 	double intersect(const Vertex *const vertexes, const Ray &ray) {
 		vec3 e1 = vertexes[b].point - vertexes[a].point;
@@ -126,19 +133,48 @@ struct Sphere {
 		}
 		return false;
 	}
+
+	__host__ __device__
+	double intersect(const Ray &ray) {
+		vec3 oc = ray.pos - center;
+		double half_b = dot(oc, ray.dir);
+		double c = oc.length_squared() - radius * radius;
+		
+		double discriminant = half_b * half_b - c;
+		if (!(discriminant < 0)) {
+			double sqrtd = sqrt(discriminant);
+			double min_t = min(-half_b - sqrtd, -half_b + sqrtd);
+			double max_t = max(-half_b - sqrtd, -half_b + sqrtd);
+
+			if (max_t < 0) {
+				return -1;
+			}
+
+			if (min_t < 0) {
+				return max_t;
+			}
+
+			return min_t;
+		}
+		return -1;
+	}
 };
+
+double EDGE_LIGHT_RADIUS = 0.03;
+const int EDGE_LIGHT_MTL = -1;
+const double EDGE_LIGHT_INTENSITY = 16;
 
 struct Mesh {
 	std::vector<Vertex> vertexes;
 	std::vector<Triangle> triangles;
+	std::vector<Sphere> spheres;
 
 	Mesh() = default;
 
 	Mesh(std::vector<Vertex> vertexes, std::vector<Triangle> triangles) :
-		vertexes(vertexes), triangles(triangles) {}
+		vertexes(vertexes), triangles(triangles), spheres() {}
 
-	// TODO: ручная триангуляция N-гонов, вынести в функцию
-	Mesh(std::string obj) : vertexes(), triangles() {
+	Mesh(std::string obj, int lights_count) : vertexes(), triangles() {
 		std::ifstream file(obj);
 
 		std::vector<vec3> normals;
@@ -176,6 +212,20 @@ struct Mesh {
 
 				triangle.material = material;
 				triangles.push_back(triangle);
+			} else if (str == "l") {
+				int v1, v2;
+				file >> v1 >> v2;
+				--v1;
+				--v2;
+				vec3 a = vertexes[v1].point, b = vertexes[v2].point;
+
+				vec3 vec = (b - a) / (double)(lights_count + 1);
+				vec3 shift = - norm((a + b) / 2.0) * EDGE_LIGHT_RADIUS;
+				for (int i = 0; i < lights_count; ++i) {
+					a += vec;
+					spheres.push_back(Sphere{EDGE_LIGHT_RADIUS, a + shift});
+				}
+
 			} else {
 				std::getline(file, str);
 			}
