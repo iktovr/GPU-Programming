@@ -3,6 +3,8 @@
 #include <vector>
 
 #include "../common/vec3.hpp"
+#include "../common/error_checkers.hpp"
+
 #include "primitives.hpp"
 
 struct MeshInfo {
@@ -20,6 +22,7 @@ struct RawScene {
 	int lights_count;
 	Light *lights;
 	vec3 ambient_light;
+	bool gpu;
 
 	__host__ __device__
 	bool intersect(const Ray &ray, HitRecord& rec) const {
@@ -76,6 +79,17 @@ struct RawScene {
 		}
 		return intensity;
 	}
+
+	void clear() {
+		if (gpu) {
+			cudaCheck(cudaFree(materials));
+			cudaCheck(cudaFree(vertexes));
+			cudaCheck(cudaFree(triangles));
+			// cudaCheck(cudaFree(spheres));
+			cudaCheck(cudaFree(meshes));
+			cudaCheck(cudaFree(lights));
+		}
+	}
 };
 
 struct Scene {
@@ -97,7 +111,44 @@ struct Scene {
 			meshes.data(),
 			static_cast<int>(lights.size()),
 			lights.data(),
-			ambient_light
+			ambient_light,
+			false
+		};
+	}
+
+	RawScene get_gpu_raw_scene() {
+		Material *dev_materials;
+		Vertex *dev_vertexes;
+		Triangle *dev_triangles;
+		Sphere *dev_spheres;
+		MeshInfo *dev_meshes;
+		Light *dev_lights;
+
+		cudaCheck(cudaMalloc(&dev_materials, materials.size() * sizeof(Material)));
+		cudaCheck(cudaMalloc(&dev_vertexes, vertexes.size() * sizeof(Vertex)));
+		cudaCheck(cudaMalloc(&dev_triangles, triangles.size() * sizeof(Triangle)));
+		// cudaCheck(cudaMalloc(&dev_spheres, spheres.size() * sizeof(Sphere)));
+		cudaCheck(cudaMalloc(&dev_meshes, meshes.size() * sizeof(Mesh)));
+		cudaCheck(cudaMalloc(&dev_lights, lights.size() * sizeof(Light)));
+
+		cudaCheck(cudaMemcpy(dev_materials, materials.data(), materials.size() * sizeof(Material), cudaMemcpyHostToDevice));
+		cudaCheck(cudaMemcpy(dev_vertexes, vertexes.data(), vertexes.size() * sizeof(Vertex), cudaMemcpyHostToDevice));
+		cudaCheck(cudaMemcpy(dev_triangles, triangles.data(), triangles.size() * sizeof(Triangle), cudaMemcpyHostToDevice));
+		// cudaCheck(cudaMemcpy(dev_spheres, spheres.data(), spheres.size() * sizeof(Sphere), cudaMemcpyHostToDevice));
+		cudaCheck(cudaMemcpy(dev_meshes, meshes.data(), meshes.size() * sizeof(Mesh), cudaMemcpyHostToDevice));
+		cudaCheck(cudaMemcpy(dev_lights, lights.data(), lights.size() * sizeof(Light), cudaMemcpyHostToDevice));
+
+		return {
+			dev_materials,
+			dev_vertexes,
+			dev_triangles,
+			dev_spheres,
+			static_cast<int>(meshes.size()),
+			dev_meshes,
+			static_cast<int>(lights.size()),
+			dev_lights,
+			ambient_light,
+			true
 		};
 	}
 

@@ -1,5 +1,5 @@
 #include <cstdlib>
-#include <cstdio> 
+#include <cstdio>
 #include <iostream>
 #include <vector>
 #include <tuple>
@@ -32,7 +32,7 @@ using namespace std::chrono;
 
 int main() {
 	// TODO: argv
-	bool gpu = false;
+	bool gpu = true;
 
 	vec3 Ka(0.2), Kd(0.7), Ks(0.7);
 	double p = 100;
@@ -94,10 +94,15 @@ int main() {
 	// std::cout << scene;
 	// return 0;
 
-	RawScene raw_scene = scene.get_raw_scene();
+	RawScene raw_scene;
+	if (gpu) {
+		raw_scene = scene.get_gpu_raw_scene();
+	} else {
+		raw_scene = scene.get_raw_scene();
+	}
 	
-	char buff[256];
-	std::vector<vec3> frame(width * height * ssaa_coeff * ssaa_coeff);
+	char buff[512];
+	std::vector<vec3f> frame(width * height * ssaa_coeff * ssaa_coeff);
 	std::vector<vec3c> data(width * height);
 
 #ifdef TIME
@@ -123,20 +128,36 @@ int main() {
 		steady_clock::time_point end = steady_clock::now();
 		frame_time += duration_cast<nanoseconds>(end - start).count() / 1000000.0;
 #endif
-	
-		std::sprintf(buff, path.c_str(), field, k);
+
+		// std::sprintf(buff, path.c_str(), field, k);
 		std::cerr << "\rFrames remaining: " << std::setw(field) << std::setfill(' ') << (frames - k - 1);
 		
-		ssaa(frame, data, width, height, ssaa_coeff);
-		stbi_write_png(buff, width, height, 3, data.data(), width * 3);
+		// ssaa(frame, data, width, height, ssaa_coeff);
+
+		for (int i = 0; i < frame.size(); ++i) {
+			data[i].x = (unsigned char)(std::min(frame[i].x, 1.0f) * 255);
+			data[i].y = (unsigned char)(std::min(frame[i].y, 1.0f) * 255);
+			data[i].z = (unsigned char)(std::min(frame[i].z, 1.0f) * 255);
+		} 
+
+		stbi_write_png(path.c_str(), width, height, 3, data.data(), width * 3);
+
+		// std::ofstream out_file(path, std::ios::binary);
+		// check(out_file.is_open(), false, "failed to open output file");
+
+		// out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
+		// out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
+		// out_file.write(reinterpret_cast<char*>(data.data()), sizeof(vec3c) * width * height);
 	}
 	std::cerr << "\nConverting to gif...\n";
-	std::system("convert res\\*.png res.gif");
+	// std::system("convert res/*.png res.gif");
 
 #ifdef TIME
 	frame_time /= frames;
 	std::cout << "Frame time: " << frame_time << '\n';
 #endif
+
+	raw_scene.clear();
 
 	return 0;
 }

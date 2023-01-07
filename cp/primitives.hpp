@@ -8,7 +8,8 @@
 
 #include "../common/vec3.hpp"
 
-const double PI = 2 * std::acos(0);
+// const double PI = 2 * std::acos(0);
+#define PI 3.141592653589793
 
 using std::sin;
 using std::cos;
@@ -43,10 +44,10 @@ std::istream& operator>>(std::istream &is, Camera &c) {
 struct Ray {
 	vec3 pos, dir;
 	int px;
-	double attenuation = 1;
+	double attenuation;
 
 	__host__ __device__
-	Ray(vec3 pos, vec3 dir, int px = -1): pos(pos), dir(dir), px(px) {}
+	Ray(vec3 pos, vec3 dir, int px = -1, double attenuation = 1): pos(pos), dir(dir), px(px), attenuation(attenuation) {}
 
 	__host__ __device__
 	vec3 at(const double t) const {
