@@ -9,23 +9,25 @@
 #endif
 
 template <class T>
-class vec3_t;
+struct vec3_t;
 
 using vec3 = vec3_t<double>;
 using vec3f = vec3_t<float>;
 using vec3i = vec3_t<int>;
+using vec3c = vec3_t<unsigned char>;
 
 template <class T>
-class vec3_t {
-public:
+struct vec3_t {
 	T x;
 	T y;
 	T z;
 
 	__host__ __device__
-	vec3_t<T>() : x(0), y(0), z(0) {}
+	vec3_t() : x(0), y(0), z(0) {}
 	__host__ __device__
-	vec3_t<T>(T x, T y, T z): x(x), y(y), z(z) {}
+	vec3_t(T x, T y, T z): x(x), y(y), z(z) {}
+	__host__ __device__
+	vec3_t(T a): x(a), y(a), z(a) {}
 
 	__host__ __device__
 	vec3_t<T> operator-() const { return vec3_t<T>(-x, -y, -z); }
@@ -36,6 +38,15 @@ public:
 		x += v.x;
 		y += v.y;
 		z += v.z;
+		return *this;
+	}
+
+	__host__ __device__
+	template <class U>
+	vec3_t<T>& operator*=(const vec3_t<U> &v) {
+		x *= v.x;
+		y *= v.y;
+		z *= v.z;
 		return *this;
 	}
 
@@ -116,6 +127,19 @@ inline vec3_t<T> operator*(const vec3_t<T> &v, const U t) {
 	return {t * v.x, t * v.y, t * v.z};
 }
 
+
+__host__ __device__
+template <class T, class U>
+inline vec3_t<T> operator+(const vec3_t<T> &v, const U t) {
+	return {t + v.x, t + v.y, t + v.z};
+}
+
+__host__ __device__
+template <class T, class U>
+inline vec3_t<T> operator-(const vec3_t<T> &v, const U t) {
+	return {t - v.x, t - v.y, t - v.z};
+}
+
 __host__ __device__
 template <class T, class U>
 inline vec3_t<T> operator/(const vec3_t<T> &u, const vec3_t<U> &v) {
@@ -165,5 +189,5 @@ inline vec3_t<T> project(vec3_t<T> a, vec3_t<T> b) {
 __host__ __device__
 template <class T>
 inline vec3_t<T> reflect(vec3_t<T> a, vec3_t<T> n) {
-	return a - 2 * project(a, n);
+	return a - T(2) * project(a, n);
 }
