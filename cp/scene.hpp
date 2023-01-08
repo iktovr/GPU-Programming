@@ -76,8 +76,14 @@ struct RawScene {
 		}
 		
 		if (rec.triangle >= 0) {
-			// vec3 normal = norm(vertexes[triangles[rec.triangle].a].normal + vertexes[triangles[rec.triangle].b].normal + vertexes[triangles[rec.triangle].c].normal);
+			// rec.normal = norm(vertexes[triangles[rec.triangle].a].normal + vertexes[triangles[rec.triangle].b].normal + vertexes[triangles[rec.triangle].c].normal);
 			rec.normal = norm(cross(vertexes[triangles[rec.triangle].c].point - vertexes[triangles[rec.triangle].a].point, vertexes[triangles[rec.triangle].b].point - vertexes[triangles[rec.triangle].a].point));
+			// rec.normal = barycentric_interpolation(
+			// 	ray.at(rec.t),
+			// 	vertexes[triangles[rec.triangle].a].point, vertexes[triangles[rec.triangle].b].point, vertexes[triangles[rec.triangle].c].point,
+			// 	vertexes[triangles[rec.triangle].a].normal, vertexes[triangles[rec.triangle].b].normal, vertexes[triangles[rec.triangle].c].normal
+			// );
+			
 			rec.material = triangles[rec.triangle].material;
 		} else {
 			rec.normal = -ray.dir;
@@ -115,15 +121,16 @@ struct RawScene {
 
 	__host__ __device__
 	vec3 get_texture_py(int texture, vec2 uv) const {
+		assert(texture >= 0);
 		int x = uv.x * textures[texture].x;
 		int y = uv.y * textures[texture].y;
 
-		// TODO: illegal memory access
 		return texture_data[texture_sizes[texture] + y * textures[texture].x + x];
 	}
 
 	__host__ __device__
 	vec3 get_texture_px(int triangle, const vec3 &point) const {
+		assert(triangle >= 0);
 		vec2 uv = barycentric_interpolation(
 			point,
 			vertexes[triangles[triangle].a].point, vertexes[triangles[triangle].b].point, vertexes[triangles[triangle].c].point,
@@ -207,7 +214,7 @@ struct Scene {
 		cudaCheck(cudaMemcpy(dev_texture_sizes, texture_sizes.data(), texture_sizes.size() * sizeof(int), cudaMemcpyHostToDevice));
 		cudaCheck(cudaMemcpy(dev_texture_data, texture_data.data(), texture_data.size() * sizeof(vec3), cudaMemcpyHostToDevice));
 		cudaCheck(cudaMemcpy(dev_lights, lights.data(), lights.size() * sizeof(Light), cudaMemcpyHostToDevice));
-
+		
 		return {
 			dev_materials,
 			dev_vertexes,
@@ -225,12 +232,14 @@ struct Scene {
 		};
 	}
 
-	void add_material(Material material) {
+	int add_material(Material material) {
 		materials.push_back(material);
+		return materials.size() - 1;
 	}
 
 	void load_texture(std::string path) {
 		std::ifstream file(path, std::ios::binary);
+		check(file.is_open(), false, "failed to open texture file");
 
 		vec2i tex;
 		file.read(reinterpret_cast<char*>(&tex.x), sizeof(int));

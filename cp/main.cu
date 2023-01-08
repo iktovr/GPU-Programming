@@ -5,6 +5,7 @@
 #include <tuple>
 #include <iomanip>
 #include <cmath>
+#include <cstring>
 #include <string>
 
 #define STBI
@@ -12,33 +13,54 @@
 #include "../common/stb_image_include.hpp"
 #endif
 
-#define TIME
-#ifdef TIME
-#include <chrono>
-using namespace std::chrono;
-#endif
-
-#ifndef __CUDACC__
-#define __host__
-#define __device__
-#endif
-
 #include "../common/vec3.hpp"
+#include "../common/cuda_timer.hpp"
 
 #include "primitives.hpp"
 #include "scene.hpp"
 #include "render.hpp"
-#include "ssaa.hpp"
 
-#ifndef __CUDACC__
-struct uchar4 {
-	unsigned char x, y, z, w;
-}
-#endif
-
-int main() {
-	// TODO: argv
+int main(int argc, char *argv[]) {
 	bool gpu = true;
+	bool print_default = false;
+	if (argc > 1) {
+		if (std::strcmp(argv[1], "--cpu") == 0) {
+			gpu = false;
+		}
+		if (std::strcmp(argv[1], "--default") == 0) {
+			print_default = true;
+		}
+	}
+
+	if (print_default) {
+		std::cout << 
+			"5\n"
+			"res/%d.png\n"
+			"1920 1080 120\n"
+			"6 5 1.57079632679489 0 2 0 2 1 0 0\n"
+			"3 0 4.71238898038469 0 0 0 0 1 0 0\n"
+			"2.75 0.29 3\n"
+			"0 0.3 0.3\n"
+			"1.8\n"
+			"0.4 0.4 4\n"
+			"-1.5 -2 2.5\n"
+			"0.3 0.3 0\n"
+			"2\n"
+			"0.4 0.4 5\n"
+			"-1.48 2.6 4 \n"
+			"0 0.3 0\n"
+			"2.5\n"
+			"0.4 0.4 3\n"
+			"5 5 0 5 -5 0.5 -5 -5 0 -5 5 0.5\n"
+			"texture.data\n"
+			"0.8 0.8 0.8 0.5\n"
+			"2\n"
+			"5 -5 10 0.6 0.6 0.6\n"
+			"5 5 10 0.6 0.6 0.6\n"
+			"6 1\n";
+		return 0;
+	}
+
 
 	vec3 Ka(0.2), Kd(0.7), Ks(0.7);
 	double p = 100;
@@ -82,24 +104,23 @@ int main() {
 	std::cin >> max_depth >> ssaa_coeff;
 
 	Scene scene;
-	scene.add_material({{0, 0, 0.6}, {0.2, 0.2, 0.2}, {0.7, 0.7, 0.7}, {0.7, 0.7, 0.7}, 100, 0, 0});
-	scene.add_material(cube_material);
-	scene.add_material(floor_material);
+	int edge_mtl = scene.add_material({{0.2, 0.2, 0.2}, {0.2, 0.2, 0.2}, {0.7, 0.7, 0.7}, {0.7, 0.7, 0.7}, 100, 0, 0}),
+	    cube_mtl = scene.add_material(cube_material),
+	    octahedron_mtl = scene.add_material(octahedron_material),
+	    icosahedron_mtl = scene.add_material(icosahedron_material),
+	    floor_mtl = scene.add_material(floor_material);
 	scene.load_texture(texture_path);
-
-	int edge_mtl = 0,
-	    cube_mtl = 1,
-	    floor_mtl = 2;
 
 	scene.add_mesh(floor, {floor_mtl});
 	Mesh cube("objects/cube.obj", cube_lights);
 	scene.add_mesh(cube, {cube_mtl, edge_mtl}, {}, cube_origin, cube_scale);
+	Mesh octahedron("objects/octahedron.obj", octahedron_lights);
+	scene.add_mesh(octahedron, {octahedron_mtl, edge_mtl}, {}, octahedron_origin, octahedron_scale);
+	Mesh icosahedron("objects/icosahedron.obj", icosahedron_lights);
+	scene.add_mesh(icosahedron, {icosahedron_mtl, edge_mtl}, {}, icosahedron_origin, icosahedron_scale);
 
 	scene.add_light(lights);
 	scene.ambient_light = {1, 1, 1};
-
-	// std::cout << scene;
-	// return 0;
 
 	RawScene raw_scene;
 	if (gpu) {
@@ -111,49 +132,38 @@ int main() {
 	char buff[512];
 	std::vector<uchar4> frame(width * height);
 
-#ifdef TIME
-	double frame_time = 0;
-#endif
-
 	double t;
-	int field = std::floor(std::log10(frames - 1)) + 1;
+	float time;
+	int rays;
 	for(int k = 0; k < frames; k++) {
 		t = 2 * PI / frames * k;
 		camera.at(t);
 
-#ifdef TIME
-		steady_clock::time_point start = steady_clock::now();
-#endif
-		if (!gpu) {
-			cpu::render(raw_scene, camera, frame, width, height, ssaa_coeff, max_depth);
+		cudaStartTimer();
+
+		if (gpu) {
+			rays = gpu::render(raw_scene, camera, frame, width, height, ssaa_coeff, max_depth);
 		} else {
-			gpu::render(raw_scene, camera, frame, width, height, ssaa_coeff, max_depth);
+			rays = cpu::render(raw_scene, camera, frame, width, height, ssaa_coeff, max_depth);
 		}
 
-#ifdef TIME
-		steady_clock::time_point end = steady_clock::now();
-		frame_time += duration_cast<nanoseconds>(end - start).count() / 1000000.0;
-#endif
+		cudaEndTimer(time);
+
+		std::cout << k << '\t' << time << '\t' << rays << '\n';
 
 		std::sprintf(buff, path.c_str(), k);
-		std::cerr << "\rFrames remaining: " << std::setw(field) << std::setfill(' ') << (frames - k - 1);
-		
+
+#ifdef STBI
 		stbi_write_png(buff, width, height, 4, frame.data(), width * 4);
+#else
+		std::ofstream out_file(path, std::ios::binary);
+		check(out_file.is_open(), false, "failed to open output file");
 
-		// std::ofstream out_file(path, std::ios::binary);
-		// check(out_file.is_open(), false, "failed to open output file");
-
-		// out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
-		// out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
-		// out_file.write(reinterpret_cast<char*>(res_frame.data()), sizeof(uchar4) * width * height);
-	}
-	std::cerr << "\nConverting to gif...\n";
-	// std::system("convert res/*.png res.gif");
-
-#ifdef TIME
-	frame_time /= frames;
-	std::cout << "Frame time: " << frame_time << '\n';
+		out_file.write(reinterpret_cast<char*>(&width), sizeof(width));
+		out_file.write(reinterpret_cast<char*>(&height), sizeof(height));
+		out_file.write(reinterpret_cast<char*>(res_frame.data()), sizeof(uchar4) * width * height);
 #endif
+	}
 
 	raw_scene.clear();
 

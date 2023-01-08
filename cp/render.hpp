@@ -29,10 +29,12 @@ vec3 phong_shade(const Material &material, const Light &light, const vec3 &inten
 }
 
 namespace cpu {
-	vec3 ray_color(const Ray& ray, const RawScene& scene, int max_depth, int depth = 0) {
+	vec3 ray_color(const Ray& ray, const RawScene& scene, int max_depth, int &total_rays_count, int depth = 0) {
 		if (depth == max_depth) {
 			return {0, 0, 0};
 		}
+
+		++total_rays_count;
 
 		HitRecord rec;
 		if (!scene.intersect(ray, rec))
@@ -54,18 +56,18 @@ namespace cpu {
 
 		if (material.reflection > 0) {
 			Ray reflect_ray(point, reflect(ray.dir, rec.normal));
-			color += material.reflection * ray_color(reflect_ray, scene, max_depth, depth + 1);
+			color += material.reflection * ray_color(reflect_ray, scene, max_depth, total_rays_count, depth + 1);
 		}
 
 		if (material.refraction > 0) {
 			Ray refract_ray(ray.at(rec.t * 1.000001), ray.dir);
-			color += material.refraction * ray_color(refract_ray, scene, max_depth, depth + 1);
+			color += material.refraction * ray_color(refract_ray, scene, max_depth, total_rays_count, depth + 1);
 		}
 
 		return color;
 	}
 
-	void render(const RawScene &scene, const Camera &camera, std::vector<uchar4> &res_frame, int width, int height, int ssaa_coeff, int max_depth) {
+	int render(const RawScene &scene, const Camera &camera, std::vector<uchar4> &res_frame, int width, int height, int ssaa_coeff, int max_depth) {
 		int w = width * ssaa_coeff, h = height * ssaa_coeff;
 		std::vector<vec3f> frame(w * h); 
 		double dw = 2.0 / (w - 1.0);
@@ -75,11 +77,12 @@ namespace cpu {
 		vec3 bx = norm(cross(bz, {0.0, 0.0, 1.0}));
 		vec3 by = norm(cross(bx, bz));
 		Ray ray(camera.pos, {0, 0, 0});
+		int total_rays_count = 0;
 		for(int i = 0; i < w; i++) {	
 			for(int j = 0; j < h; j++) {
 				vec3 v = {-1.0 + dw * i, (-1.0 + dh * j) * h / w, z};
 				ray.dir = norm(matmul(bx, by, bz, v));
-				vec3 color = ray_color(ray, scene, max_depth);
+				vec3 color = ray_color(ray, scene, max_depth, total_rays_count);
 				frame[(h - 1 - j) * w + i].x = (float)color.x;
 				frame[(h - 1 - j) * w + i].y = (float)color.y;
 				frame[(h - 1 - j) * w + i].z = (float)color.z;
@@ -87,10 +90,9 @@ namespace cpu {
 		}
 
 		cpu::ssaa(frame, res_frame, w, h, ssaa_coeff);
+		return total_rays_count;
 	}
 }
-
-#ifdef __CUDACC__
 
 namespace gpu {
 	__global__ void cast_rays(Ray *rays, const Camera *const camera, int w, int h) {
@@ -129,7 +131,6 @@ namespace gpu {
 			for (int i = 0; i < scene->lights_count; ++i) {
 				vec3 intensity = scene->light_intensity(i, rec, in_rays[idx]);
 				color = in_rays[idx].attenuation * phong_shade(scene->materials[rec.material], scene->lights[i], intensity, scene->ambient_light, point, in_rays[idx], rec);
-				
 				if (rec.triangle >= 0 && scene->triangles[rec.triangle].texture >= 0) {
 					color *= scene->get_texture_px(rec.triangle, point);
 				}
@@ -149,7 +150,7 @@ namespace gpu {
 		}
 	}
 
-	void render(const RawScene &scene, const Camera &camera, std::vector<uchar4> &res_frame, int width, int height, int ssaa_coeff, int max_depth) {
+	int render(const RawScene &scene, const Camera &camera, std::vector<uchar4> &res_frame, int width, int height, int ssaa_coeff, int max_depth) {
 		vec3f *dev_frame;
 		cudaCheck(cudaMalloc(&dev_frame, sizeof(vec3f) * width * height * ssaa_coeff * ssaa_coeff));
 		cudaCheck(cudaMemset(dev_frame, 0, sizeof(vec3f) * width * height * ssaa_coeff * ssaa_coeff));
@@ -164,22 +165,22 @@ namespace gpu {
 
 		Ray *in_rays, *out_rays;
 		int rays_count = width * height * ssaa_coeff * ssaa_coeff,
-		    in_rays_count = rays_count * 2, out_rays_count = in_rays_count;
+		    in_rays_count = rays_count * 2, out_rays_count = rays_count * 2;
 		int *dev_rays_count;
 		cudaCheck(cudaMalloc(&in_rays, sizeof(Ray) * in_rays_count));
 		cudaCheck(cudaMalloc(&out_rays, sizeof(Ray) * out_rays_count));
 		cudaCheck(cudaMalloc(&dev_rays_count, sizeof(int)));
 
-		cast_rays<<<dim3(16, 32), dim3(16, 32)>>>(in_rays, dev_camera, width * ssaa_coeff, height * ssaa_coeff);
+		cast_rays<<<dim3(32, 32), dim3(16, 32)>>>(in_rays, dev_camera, width * ssaa_coeff, height * ssaa_coeff);
 		cudaCheck(cudaDeviceSynchronize());
 		cudaCheckLastError();
 
-		std::cout << rays_count << '\n';
+		int total_rays_count = rays_count;
 
 		for (int i = 0; i < max_depth; ++i) {
 			cudaCheck(cudaMemset(dev_rays_count, 0, sizeof(int)));
 
-			trace_rays<<<256, 256>>>(dev_scene, in_rays, out_rays, rays_count, dev_rays_count, dev_frame);
+			trace_rays<<<1024, 512>>>(dev_scene, in_rays, out_rays, rays_count, dev_rays_count, dev_frame);
 			cudaCheck(cudaDeviceSynchronize());
 			cudaCheckLastError();
 
@@ -193,13 +194,15 @@ namespace gpu {
 				cudaCheck(cudaMalloc(&out_rays, sizeof(Ray) * out_rays_count));
 			}
 			
-			std::cout << rays_count << '\n';
+			if (i != max_depth - 1) {
+				total_rays_count += rays_count;
+			}
 		}
 
 		uchar4 *dev_res_frame;
 		cudaCheck(cudaMalloc(&dev_res_frame, sizeof(uchar4) * res_frame.size()));
 
-		gpu::ssaa<<<dim3(16, 32), dim3(16, 32)>>>(dev_frame, dev_res_frame, width, height, ssaa_coeff);
+		gpu::ssaa<<<dim3(32, 32), dim3(16, 32)>>>(dev_frame, dev_res_frame, width, height, ssaa_coeff);
 		cudaCheck(cudaDeviceSynchronize());
 		cudaCheckLastError();
 		
@@ -212,7 +215,7 @@ namespace gpu {
 		cudaCheck(cudaFree(dev_rays_count));
 		cudaCheck(cudaFree(dev_camera));
 		cudaCheck(cudaFree(dev_scene));
+
+		return total_rays_count;
 	}
 }
-
-#endif

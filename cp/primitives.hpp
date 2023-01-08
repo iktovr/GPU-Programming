@@ -9,7 +9,6 @@
 #include "../common/vec3.hpp"
 #include "../common/vec2.hpp"
 
-// const double PI = 2 * std::acos(0);
 #define PI 3.141592653589793
 
 using std::sin;
@@ -162,7 +161,7 @@ struct Sphere {
 
 double EDGE_LIGHT_RADIUS = 0.03;
 const int EDGE_LIGHT_MTL = -1;
-const double EDGE_LIGHT_INTENSITY = 16;
+const double EDGE_LIGHT_INTENSITY = 32;
 
 struct Mesh {
 	std::vector<Vertex> vertexes;
@@ -220,7 +219,7 @@ struct Mesh {
 				vec3 a = vertexes[v1].point, b = vertexes[v2].point;
 
 				vec3 vec = (b - a) / (double)(lights_count + 1);
-				vec3 shift = - norm((a + b) / 2.0) * EDGE_LIGHT_RADIUS;
+				vec3 shift = - norm((a + b) / 2.0) * EDGE_LIGHT_RADIUS * 1;
 				for (int i = 0; i < lights_count; ++i) {
 					a += vec;
 					spheres.push_back(Sphere{EDGE_LIGHT_RADIUS, a + shift});
