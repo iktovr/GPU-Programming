@@ -1,2 +1,7 @@
+FLAGS=--std=c++11 -O2 -g -D_FORCE_INLINES
+
 all: main.cu
-	nvcc -D_FORCE_INLINES --std=c++11 -O3 -g -o main main.cu
+	nvcc $(FLAGS) -o main main.cu
+
+print_scene: print_scene.cu
+	nvcc $(FLAGS) -o print_scene print_scene.cu

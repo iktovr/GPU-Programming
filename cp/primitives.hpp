@@ -56,7 +56,8 @@ struct Ray {
 };
 
 struct Vertex {
-	vec3 point, normal;
+	vec3 point;
+	vec3 normal; // Не используется
 };
 
 struct Triangle {

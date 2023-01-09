@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <cassert>
 
 #include "../common/vec3.hpp"
 #include "../common/error_checkers.hpp"
@@ -76,8 +77,13 @@ struct RawScene {
 		}
 		
 		if (rec.triangle >= 0) {
+			// Усреднение нормалей вершин
 			// rec.normal = norm(vertexes[triangles[rec.triangle].a].normal + vertexes[triangles[rec.triangle].b].normal + vertexes[triangles[rec.triangle].c].normal);
+			
+			// Через векторное произведение
 			rec.normal = norm(cross(vertexes[triangles[rec.triangle].c].point - vertexes[triangles[rec.triangle].a].point, vertexes[triangles[rec.triangle].b].point - vertexes[triangles[rec.triangle].a].point));
+			
+			// Интерполяция нормалей вершин
 			// rec.normal = barycentric_interpolation(
 			// 	ray.at(rec.t),
 			// 	vertexes[triangles[rec.triangle].a].point, vertexes[triangles[rec.triangle].b].point, vertexes[triangles[rec.triangle].c].point,
@@ -314,22 +320,22 @@ std::ostream& operator<<(std::ostream &os, const Scene &scene) {
 			const Vertex &a = scene.vertexes[scene.triangles[k].a];
 			const Vertex &b = scene.vertexes[scene.triangles[k].b];
 			const Vertex &c = scene.vertexes[scene.triangles[k].c];
-			vec3 center = (a.point + b.point + c.point) / 3.0; 
-			vec3 normal = norm(a.normal + b.normal + c.normal);
-			os << a.point << '\n' << b.point << '\n' << c.point << '\n' << a.point << "\n\n" <<
-			      center << '\n' << center + normal << "\n\n";
+			// vec3 center = (a.point + b.point + c.point) / 3.0; 
+			// vec3 normal = norm(a.normal + b.normal + c.normal);
+			os << a.point << '\n' << b.point << '\n' << c.point << '\n' << a.point << "\n\n";// <<
+			    //   center << '\n' << center + normal << "\n\n";
 		}
 	}
 
-	for (auto& sphere: scene.spheres) {
-		os << (sphere.center - vec3{0, 0, sphere.radius}) << '\n' << (sphere.center + vec3{0, 0, sphere.radius}) << "\n\n" << 
-		      (sphere.center - vec3{0, sphere.radius, 0}) << '\n' << (sphere.center + vec3{0, sphere.radius, 0}) << "\n\n" << 
-		      (sphere.center - vec3{sphere.radius, 0, 0}) << '\n' << (sphere.center + vec3{sphere.radius, 0, 0}) << "\n\n";
-	}
+	// for (auto& sphere: scene.spheres) {
+	// 	os << (sphere.center - vec3{0, 0, sphere.radius}) << '\n' << (sphere.center + vec3{0, 0, sphere.radius}) << "\n\n" << 
+	// 	      (sphere.center - vec3{0, sphere.radius, 0}) << '\n' << (sphere.center + vec3{0, sphere.radius, 0}) << "\n\n" << 
+	// 	      (sphere.center - vec3{sphere.radius, 0, 0}) << '\n' << (sphere.center + vec3{sphere.radius, 0, 0}) << "\n\n";
+	// }
 
-	for (auto &light: scene.lights) {
-		os << light.pos << "\n\n";
-	}
+	// for (auto &light: scene.lights) {
+	// 	os << light.pos << "\n\n";
+	// }
 
 	return os;
 }

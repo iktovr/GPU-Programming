@@ -180,7 +180,7 @@ namespace gpu {
 		for (int i = 0; i < max_depth; ++i) {
 			cudaCheck(cudaMemset(dev_rays_count, 0, sizeof(int)));
 
-			trace_rays<<<1024, 512>>>(dev_scene, in_rays, out_rays, rays_count, dev_rays_count, dev_frame);
+			trace_rays<<<256, 128>>>(dev_scene, in_rays, out_rays, rays_count, dev_rays_count, dev_frame);
 			cudaCheck(cudaDeviceSynchronize());
 			cudaCheckLastError();
 
