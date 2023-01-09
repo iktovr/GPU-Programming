@@ -1,0 +1,105 @@
+\pagebreak
+\section{Результаты}
+
+\textbf{Сравнение времени работы}
+Для замера времени работы программы зафиксируем граничные условия и значение погрешности ($10^{-8}$) и будем изменять разрешение глобальной сетки (сетка имеет вид N$\times$N$\times$N) и количество используемых процессов.
+
+\begin{center}
+\begin{tabular}{|l*{7}{|r}|}
+\hline
+\textbf{N} & 8 & 12 & 16 & 24 & 32 & 48 & 64 \\
+\hline
+\hline
+\textbf{Число процессов} & \multicolumn{7}{c|}{\textbf{Время выполнения, мс}} \\
+\hline
+1 & 6.2718 & 37.7551 & 124.263 & 883.817 & 3300.87 & 22517.9 & 86774.1 \\
+\hline
+2 & 5.5988 & 23.6612 &  92.950 & 518.918 & 2207.44 & 13376.3 & 51410.7 \\
+\hline
+4 & 5.1104 & 25.0131 &  76.076 & 406.282 & 1587.22 & 10138.9 & 37458.3 \\
+\hline
+8 & 6.9534 & 21.8882 &  54.659 & 289.816 & 1004.07 &  6461.2 & 23100.3 \\
+\hline
+16 & 11169 &   22666 &   37887 &       - &       - &       - &       - \\
+\hline
+\hline
+ & \multicolumn{7}{c|}{\textbf{Ускорение}} \\
+\hline
+2 & 1.12 & 1.60 & 1.34 & 1.70 & 1.50 & 1.68 & 1.69 \\
+\hline
+4 & 1.23 & 1.51 & 1.63 & 2.18 & 2.08 & 2.22 & 2.32 \\
+\hline
+8 & 0.90 & 1.72 & 2.27 & 3.05 & 3.29 & 3.49 & 3.76 \\
+\hline
+\hline
+ & \multicolumn{7}{c|}{\textbf{Коэффициент распараллеливания}} \\
+\hline
+2 & 0.56 & 0.80 & 0.67 & 0.85 & 0.75 & 0.84 & 0.84 \\
+\hline
+4 & 0.30 & 0.38 & 0.41 & 0.54 & 0.52 & 0.56 & 0.58 \\
+\hline
+8 & 0.11 & 0.22 & 0.28 & 0.38 & 0.41 & 0.44 & 0.47 \\
+\hline
+\end{tabular}
+\end{center}
+
+Измерения выполнялись на процессоре с 8 логическими ядрами, поэтому использование большего числа процессов приводит к абсолютно ужасным результатам.
+
+\begin{tikzpicture}
+\begin{semilogyaxis}[
+    ylabel = Время выполнения,
+    xlabel = Число процессов,
+    width = .95\textwidth,
+    height = .6\textwidth,
+    legend pos = outer north east,
+    colormap name = colormap/jet,
+    cycle list = {[of colormap]}
+]
+\legend{
+    $8$,
+    $12$,
+    $16$,
+    $24$,
+    $32$,
+    $48$,
+    $64$,
+};
+\pgfplotstableread{data/time.dat}\timetable
+\addplot+ [thick, mark=*] table [x=count, y=8] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=12] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=16] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=24] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=32] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=48] {\timetable};
+\addplot+ [thick, mark=*] table [x=count, y=64] {\timetable};
+\end{semilogyaxis}
+\end{tikzpicture}
+
+\pagebreak
+
+\textbf{Результаты работы}
+
+Рассмотрим каждый второй срез по $z$ для решения с глобальной сеткой $24\times24\times31$ для уравнения с граничными условиями $u_{down} = 7$,  $u_{up}=0$, $u_{left}=5$, $u_{right}=0$, $u_{front}=3$, $u_{back}=0$ и начальным значением $u = 5$.
+
+\pgfplotsset{
+    /pgfplots/colormap={hot2}{[1cm]rgb255(0cm)=(0,0,0) rgb255(3cm)=(255,0,0)
+        rgb255(6cm)=(255,255,0) rgb255(8cm)=(255,255,255)}
+}
+
+\newcommand{\plotheatmap}[1]{
+\begin{axis}[title={$z={#1}$}, view={0}{90}, colormap name = hot2, width=.33\textwidth, height=.33\textwidth, xtick=\empty, ytick=\empty]
+\addplot3 [surf, shader=flat, mesh/cols=24] table [x index=0, y index=1, z index={\the\numexpr#1+2\relax}] {data/res.dat};
+\end{axis}}
+
+\begin{center}
+\begin{tikzpicture}
+\matrix [row sep=3mm, column sep=3mm] {
+    \plotheatmap{0} & \plotheatmap{2} & \plotheatmap{4} & \plotheatmap{6} \\
+    \plotheatmap{8} & \plotheatmap{10} & \plotheatmap{12} & \plotheatmap{14} \\
+    \plotheatmap{16} & \plotheatmap{18} & \plotheatmap{20} & \plotheatmap{22} \\
+    \plotheatmap{24} & \plotheatmap{26} & \plotheatmap{28} & \plotheatmap{30} \\
+};
+\end{tikzpicture}
+\end{center}
+
+\pagebreak
