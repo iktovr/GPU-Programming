@@ -2,6 +2,9 @@
 tests/bench/
 **/report/*.out
 
+*.obj
+!cp/objects/*.obj
+
 # CUDA
 *.i
 *.ii
@@ -18,7 +21,6 @@ tests/bench/
 *.slo
 *.lo
 *.o
-*.obj
 
 # Precompiled Headers
 *.gch
